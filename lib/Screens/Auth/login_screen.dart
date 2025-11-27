@@ -1,0 +1,175 @@
+import 'package:flutter/material.dart';
+import 'register.dart';
+import 'forgot_password.dart';
+import '../home_screen.dart'; // Adjust path if necessary
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({Key? key}) : super(key: key);
+
+  @override
+  _LoginScreenState createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  void _login() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+
+      // Simulate a login API call
+      await Future.delayed(const Duration(seconds: 2));
+
+      setState(() => _isLoading = false);
+
+      // Navigate to HomeScreen (remove const)
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => HomeScreen()),
+      );
+    }
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) return 'Please enter your email';
+    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+    if (!emailRegex.hasMatch(value)) return 'Enter a valid email';
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) return 'Please enter your password';
+    if (value.length < 6) return 'Password must be at least 6 characters';
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Login to Kwagala Farm"),
+        backgroundColor: Colors.green,
+        elevation: 0,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              const SizedBox(height: 20),
+              Icon(Icons.agriculture, size: 80, color: Colors.green[700]),
+              const SizedBox(height: 10),
+              Text(
+                "Welcome Back!",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.green[800]),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                "Sign in to manage your goat farm",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 30),
+              // Email
+              TextFormField(
+                controller: emailController,
+                decoration: InputDecoration(
+                  labelText: "Email Address",
+                  prefixIcon: Icon(Icons.email, color: Colors.green[700]),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                ),
+                validator: _validateEmail,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 20),
+              // Password
+              TextFormField(
+                controller: passwordController,
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  labelText: "Password",
+                  prefixIcon: Icon(Icons.lock, color: Colors.green[700]),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off, color: Colors.grey[600]),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                ),
+                validator: _validatePassword,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _login(),
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => ForgotPasswordScreen()));
+                  },
+                  child: Text("Forgot Password?", style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(height: 25),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _login,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+                      )
+                    : const Text("Sign In", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 30),
+              // Divider
+              Row(
+                children: const [
+                  Expanded(child: Divider()),
+                  Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text("OR")),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 30),
+              // Register
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text("Don't have an account?", style: TextStyle(color: Colors.grey[700])),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => RegisterScreen()));
+                    },
+                    child: Text("Create Account", style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
