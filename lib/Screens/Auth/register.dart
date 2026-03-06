@@ -11,8 +11,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final nameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-  
+
   bool _isLoading = false;
+  bool _obscurePassword = true; // <-- Added to control password visibility
 
   @override
   void dispose() {
@@ -89,16 +90,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: ListView(
             children: [
               SizedBox(height: 20),
-              
+
               // App Logo/Icon
               Icon(
                 Icons.agriculture,
                 size: 80,
                 color: Colors.green[700],
               ),
-              
+
               SizedBox(height: 10),
-              
+
               Text(
                 "Kwagala Goat Farm",
                 textAlign: TextAlign.center,
@@ -108,9 +109,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   color: Colors.green[700],
                 ),
               ),
-              
+
               SizedBox(height: 5),
-              
+
               Text(
                 "Create Your Account",
                 textAlign: TextAlign.center,
@@ -153,17 +154,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               SizedBox(height: 20),
 
-              // Password Field
+              // Password Field with visibility toggle
               TextFormField(
                 controller: passwordController,
-                obscureText: true,
+                obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   labelText: "Password",
                   prefixIcon: Icon(Icons.lock),
                   border: OutlineInputBorder(),
                   filled: true,
                   fillColor: Colors.grey[50],
-                  suffixIcon: Icon(Icons.visibility_off),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
                 ),
                 validator: _validatePassword,
                 textInputAction: TextInputAction.done,

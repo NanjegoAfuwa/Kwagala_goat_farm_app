@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'register.dart';
 import 'forgot_password.dart';
 import '../home_screen.dart'; // Adjust path if necessary
+import '../../Widgets/bottom_nav.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -29,15 +30,13 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      // Simulate a login API call
       await Future.delayed(const Duration(seconds: 2));
 
       setState(() => _isLoading = false);
 
-      // Navigate to HomeScreen (remove const)
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => HomeScreen()),
+        MaterialPageRoute(builder: (_) => BottomNav()),
       );
     }
   }
@@ -75,22 +74,31 @@ class _LoginScreenState extends State<LoginScreen> {
               Text(
                 "Welcome Back!",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.green[800]),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green[800],
+                ),
               ),
               const SizedBox(height: 5),
               Text(
                 "Sign in to manage your goat farm",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.black.withOpacity(0.6),
+                ),
               ),
               const SizedBox(height: 30),
-              // Email
+
               TextFormField(
                 controller: emailController,
                 decoration: InputDecoration(
                   labelText: "Email Address",
                   prefixIcon: Icon(Icons.email, color: Colors.green[700]),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey[50],
                 ),
@@ -99,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 20),
-              // Password
+
               TextFormField(
                 controller: passwordController,
                 obscureText: _obscurePassword,
@@ -107,10 +115,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   labelText: "Password",
                   prefixIcon: Icon(Icons.lock, color: Colors.green[700]),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off, color: Colors.grey[600]),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                      color: Colors.grey[600],
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   filled: true,
                   fillColor: Colors.grey[50],
                 ),
@@ -118,51 +134,98 @@ class _LoginScreenState extends State<LoginScreen> {
                 textInputAction: TextInputAction.done,
                 onFieldSubmitted: (_) => _login(),
               ),
+
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ForgotPasswordScreen()));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ForgotPasswordScreen(),
+                      ),
+                    );
                   },
-                  child: Text("Forgot Password?", style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.w600)),
+                  child: Text(
+                    "Forgot Password?",
+                    style: TextStyle(
+                      color: Colors.green[700],
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
+
               const SizedBox(height: 25),
+
               ElevatedButton(
                 onPressed: _isLoading ? null : _login,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green[700],
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 child: _isLoading
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
                       )
-                    : const Text("Sign In", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    : const Text(
+                        "Sign In",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black, // ✅ FIXED
+                        ),
+                      ),
               ),
+
               const SizedBox(height: 30),
-              // Divider
+
               Row(
                 children: const [
                   Expanded(child: Divider()),
-                  Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text("OR")),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Text("OR"),
+                  ),
                   Expanded(child: Divider()),
                 ],
               ),
+
               const SizedBox(height: 30),
-              // Register
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("Don't have an account?", style: TextStyle(color: Colors.grey[700])),
+                  Text(
+                    "Don't have an account?",
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
                   TextButton(
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => RegisterScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RegisterScreen(),
+                        ),
+                      );
                     },
-                    child: Text("Create Account", style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold, fontSize: 15)),
+                    child: Text(
+                      "Create Account",
+                      style: TextStyle(
+                        color: Colors.green[700],
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
                   ),
                 ],
               ),

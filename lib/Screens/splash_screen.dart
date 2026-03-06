@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'Auth/login_screen.dart';
-
+import 'on_boarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   @override
@@ -18,11 +18,11 @@ class _SplashScreenState extends State<SplashScreen> {
     // Wait for 3 seconds
     await Future.delayed(Duration(seconds: 3));
     
-    // Navigate to login screen
+    // Navigate to on boarding screen
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
+        MaterialPageRoute(builder: (context) => OnBoardingScreen()),
       );
     }
   }

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'Auth/login_screen.dart';
-import 'Auth/register.dart';
-import 'Auth/forgot_password.dart';
 
 class OnBoardingScreen extends StatefulWidget {
   @override
@@ -12,21 +10,24 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
   PageController _controller = PageController();
   int currentPage = 0;
 
+  // Adjustable opacity for full-screen overlay
+  final double overlayOpacity = 0.3; // 0 = fully transparent, 1 = fully opaque
+
   List<Map<String, String>> pages = [
     {
       "title": "Welcome to Kwagala Farm",
       "subtitle": "Manage goats, track health, feeding and sales easily.",
-      "icon": "🐐",
+      "background": "Assets/background1.jpg",
     },
     {
       "title": "Track Goats Effortlessly",
       "subtitle": "Record goat details including breed, age, weight & health.",
-      "icon": "📋",
+      "background": "Assets/background2.jpg",
     },
     {
       "title": "Smart Farm Management",
       "subtitle": "Monitor sales, health alerts and improve farm productivity.",
-      "icon": "📊",
+      "background": "Assets/background3.jpg",
     },
   ];
 
@@ -35,9 +36,10 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          /// --- PAGES ---
+          // Full-screen PageView
           PageView.builder(
             controller: _controller,
+            physics: const NeverScrollableScrollPhysics(), // disable swipe
             itemCount: pages.length,
             onPageChanged: (index) {
               setState(() {
@@ -45,65 +47,79 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
               });
             },
             itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.all(30.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      pages[index]["icon"]!,
-                      style: TextStyle(fontSize: 90),
+              return Stack(
+                children: [
+                  // Background image
+                  SizedBox.expand(
+                    child: Image.asset(
+                      pages[index]["background"]!,
+                      fit: BoxFit.cover,
                     ),
-                    SizedBox(height: 40),
+                  ),
 
-                    Text(
-                      pages[index]["title"]!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
+                  // Semi-transparent overlay
+                  Container(
+                    color: Colors.black.withOpacity(overlayOpacity),
+                  ),
+
+                  // Centered text
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(30.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            pages[index]["title"]!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            pages[index]["subtitle"]!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-
-                    SizedBox(height: 20),
-
-                    Text(
-                      pages[index]["subtitle"]!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               );
             },
           ),
 
-          /// --- SKIP BUTTON ---
-          Positioned(
-            right: 20,
-            top: 50,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => LoginScreen()),
-                );
-              },
-              child: Text(
-                "Skip",
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
+          // Skip button (top-right, bold white)
+          if (currentPage != pages.length - 1)
+            Positioned(
+              top: 50,
+              right: 20,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => LoginScreen()),
+                  );
+                },
+                child: const Text(
+                  "Skip",
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
-          ),
 
-          /// --- DOT INDICATORS ---
+          // Dot indicators (centered above buttons)
           Positioned(
             bottom: 90,
             left: 0,
@@ -117,56 +133,76 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
             ),
           ),
 
-          /// --- NEXT / GET STARTED BUTTON ---
-          Positioned(
-            bottom: 30,
-            right: 20,
-            child: ElevatedButton(
-              onPressed: () {
-                if (currentPage == pages.length - 1) {
-                  // LAST PAGE → GO TO LOGIN
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => LoginScreen()),
-                  );
-                } else {
-                  // GO TO NEXT PAGE
+          // Next button (bottom-right)
+          if (currentPage != pages.length - 1)
+            Positioned(
+              bottom: 30,
+              right: 20,
+              child: ElevatedButton(
+                onPressed: () {
                   _controller.nextPage(
-                    duration: Duration(milliseconds: 400),
+                    duration: const Duration(milliseconds: 400),
                     curve: Curves.easeInOut,
                   );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding:
-                    EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 30, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  "Next",
+                  style: TextStyle(fontSize: 18, color: Colors.white),
                 ),
               ),
-              child: Text(
-                currentPage == pages.length - 1
-                    ? "Get Started"
-                    : "Next",
-                style: TextStyle(fontSize: 18, color: Colors.white),
+            ),
+
+          // Get Started button (bottom-center)
+          if (currentPage == pages.length - 1)
+            Positioned(
+              bottom: 30,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => LoginScreen()),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 40, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    "Get Started",
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  /// --- DOT WIDGET ---
+  // Dot widget
   Widget buildDot(int index) {
     return AnimatedContainer(
-      duration: Duration(milliseconds: 200),
-      margin: EdgeInsets.symmetric(horizontal: 5),
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.symmetric(horizontal: 5),
       height: 10,
       width: currentPage == index ? 25 : 10,
       decoration: BoxDecoration(
-        color: currentPage == index ? Colors.green : Colors.grey,
+        color: currentPage == index ? Colors.orange : Colors.grey,
         borderRadius: BorderRadius.circular(20),
       ),
     );
