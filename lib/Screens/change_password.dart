@@ -57,7 +57,16 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Change Password"),
+        title: const Text(
+          "Change Password",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w900, // 🔥 more bold
+          ),
+        ),
+        iconTheme: const IconThemeData(
+          color: Colors.white, // 🔥 makes back arrow white
+        ),
         centerTitle: true,
         backgroundColor: Colors.green,
         bottom: PreferredSize(
@@ -161,6 +170,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.white,
+                      fontWeight: FontWeight.bold, // 🔥 bold button text
                     ),
                   ),
                 ),

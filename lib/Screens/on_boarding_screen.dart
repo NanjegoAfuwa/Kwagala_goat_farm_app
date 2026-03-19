@@ -32,6 +32,21 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+
+    // Preload images so they appear together with text
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (var page in pages) {
+        precacheImage(
+          AssetImage(page["background"]!),
+          context,
+        );
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
@@ -147,8 +162,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 30, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

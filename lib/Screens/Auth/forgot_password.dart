@@ -10,25 +10,41 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final emailController = TextEditingController();
-  final passwordController = TextEditingController(); // ✅ added
+  final passwordController = TextEditingController();
 
   bool _isLoading = false;
   bool _resetSent = false;
-  bool _obscurePassword = true; // ✅ added
+  bool _obscurePassword = true;
+
+  final FocusNode emailFocus = FocusNode();
+  final FocusNode passwordFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+
+    emailFocus.addListener(() {
+      setState(() {});
+    });
+
+    passwordFocus.addListener(() {
+      setState(() {});
+    });
+  }
 
   @override
   void dispose() {
     emailController.dispose();
-    passwordController.dispose(); // ✅ added
+    passwordController.dispose();
+    emailFocus.dispose();
+    passwordFocus.dispose();
     super.dispose();
   }
 
-  // Password reset function
   Future<void> _resetPassword() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      // Simulate an API call (replace with Firebase or backend)
       await Future.delayed(const Duration(seconds: 2));
 
       setState(() {
@@ -46,11 +62,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }
   }
 
-  // Email validation
   String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) return 'Please enter your email address';
+    if (value == null || value.isEmpty) {
+      return 'Please enter your email address';
+    }
+
     final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-    if (!emailRegex.hasMatch(value)) return 'Please enter a valid email address';
+
+    if (!emailRegex.hasMatch(value)) {
+      return 'Please enter a valid email address';
+    }
+
     return null;
   }
 
@@ -62,29 +84,37 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Reset Password"),
-        backgroundColor: Colors.green,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _goBackToLogin,
+        title: const Text(
+          "Reset Password",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        backgroundColor: Colors.green,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
+
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+
               const SizedBox(height: 20),
-              Center(
+
+              const Center(
                 child: Icon(
                   Icons.lock_reset,
                   size: 80,
                   color: Colors.orange,
                 ),
               ),
+
               const SizedBox(height: 20),
+
               Text(
                 "Forgot Password?",
                 style: TextStyle(
@@ -93,7 +123,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   color: Colors.green.shade800,
                 ),
               ),
+
               const SizedBox(height: 16),
+
               Text(
                 "Don't worry! Enter your email and we'll send you a link to reset your password.",
                 style: TextStyle(
@@ -102,17 +134,34 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   height: 1.5,
                 ),
               ),
+
               const SizedBox(height: 30),
 
               // EMAIL FIELD
               TextFormField(
                 controller: emailController,
+                focusNode: emailFocus,
+                style: const TextStyle(color: Colors.black),
+                cursorColor: Colors.orange,
                 decoration: InputDecoration(
                   labelText: "Email Address",
                   hintText: "Enter your registered email",
-                  prefixIcon: Icon(Icons.email, color: Colors.green.shade700),
+                  labelStyle: TextStyle(
+                    color: emailFocus.hasFocus ? Colors.orange : Colors.grey,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.email,
+                    color: emailFocus.hasFocus
+                        ? Colors.orange
+                        : Colors.green.shade700,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        const BorderSide(color: Colors.orange, width: 2),
                   ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
@@ -124,14 +173,26 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
               const SizedBox(height: 20),
 
-              // PASSWORD FIELD WITH VISIBILITY TOGGLE ✅
+              // PASSWORD FIELD
               TextFormField(
                 controller: passwordController,
+                focusNode: passwordFocus,
                 obscureText: _obscurePassword,
+                style: const TextStyle(color: Colors.black),
+                cursorColor: Colors.orange,
                 decoration: InputDecoration(
                   labelText: "New Password",
                   hintText: "Enter new password",
-                  prefixIcon: Icon(Icons.lock, color: Colors.green.shade700),
+                  labelStyle: TextStyle(
+                    color:
+                        passwordFocus.hasFocus ? Colors.orange : Colors.grey,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.lock,
+                    color: passwordFocus.hasFocus
+                        ? Colors.orange
+                        : Colors.green.shade700,
+                  ),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
@@ -147,6 +208,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        const BorderSide(color: Colors.orange, width: 2),
+                  ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
@@ -154,6 +220,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
               const SizedBox(height: 30),
 
+              // BUTTON
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -176,10 +243,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ),
                         )
                       : Text(
-                          _resetSent ? "Reset Link Sent" : "Send Reset Link",
+                          _resetSent
+                              ? "Reset Link Sent"
+                              : "Send Reset Link",
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                 ),
@@ -218,7 +288,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                 ),
 
-              const Spacer(),
+              const SizedBox(height: 30),
 
               Center(
                 child: TextButton(

@@ -17,7 +17,7 @@ class _SplashScreenState extends State<SplashScreen> {
   _navigateToLogin() async {
     // Wait for 3 seconds
     await Future.delayed(Duration(seconds: 3));
-    
+
     // Navigate to on boarding screen
     if (mounted) {
       Navigator.pushReplacement(
@@ -35,12 +35,15 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.agriculture,
-              size: 100,
-              color: Colors.white,
+
+            // ✅ Farm Logo instead of icon
+            Image.asset(
+              "assets/farm.png",
+              height: 100,
             ),
+
             SizedBox(height: 20),
+
             Text(
               "Kwagala Goat Farm",
               style: TextStyle(
@@ -49,7 +52,9 @@ class _SplashScreenState extends State<SplashScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+
             SizedBox(height: 10),
+
             Text(
               "Quality Goat Farming",
               style: TextStyle(
@@ -57,7 +62,9 @@ class _SplashScreenState extends State<SplashScreen> {
                 color: Colors.white70,
               ),
             ),
+
             SizedBox(height: 30),
+
             CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
             ),

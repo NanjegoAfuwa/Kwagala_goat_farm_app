@@ -19,10 +19,29 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
 
+  // Focus nodes
+  final FocusNode emailFocus = FocusNode();
+  final FocusNode passwordFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+
+    emailFocus.addListener(() {
+      setState(() {});
+    });
+
+    passwordFocus.addListener(() {
+      setState(() {});
+    });
+  }
+
   @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
+    emailFocus.dispose();
+    passwordFocus.dispose();
     super.dispose();
   }
 
@@ -58,7 +77,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Login to Kwagala Farm"),
+        title: const Text(
+          "Login to Kwagala Farm",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 20,
+          ),
+        ),
         backgroundColor: Colors.green,
         elevation: 0,
       ),
@@ -69,8 +95,11 @@ class _LoginScreenState extends State<LoginScreen> {
           child: ListView(
             children: [
               const SizedBox(height: 20),
+
               Icon(Icons.agriculture, size: 80, color: Colors.green[700]),
+
               const SizedBox(height: 10),
+
               Text(
                 "Welcome Back!",
                 textAlign: TextAlign.center,
@@ -80,7 +109,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Colors.green[800],
                 ),
               ),
+
               const SizedBox(height: 5),
+
               Text(
                 "Sign in to manage your goat farm",
                 textAlign: TextAlign.center,
@@ -89,15 +120,31 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Colors.black.withOpacity(0.6),
                 ),
               ),
+
               const SizedBox(height: 30),
 
               TextFormField(
                 controller: emailController,
+                focusNode: emailFocus,
+                style: const TextStyle(color: Colors.black),
+                cursorColor: Colors.orange,
                 decoration: InputDecoration(
                   labelText: "Email Address",
-                  prefixIcon: Icon(Icons.email, color: Colors.green[700]),
+                  labelStyle: TextStyle(
+                    color: emailFocus.hasFocus ? Colors.orange : Colors.grey,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.email,
+                    color:
+                        emailFocus.hasFocus ? Colors.orange : Colors.green[700],
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        const BorderSide(color: Colors.orange, width: 2),
                   ),
                   filled: true,
                   fillColor: Colors.grey[50],
@@ -106,14 +153,27 @@ class _LoginScreenState extends State<LoginScreen> {
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
               ),
+
               const SizedBox(height: 20),
 
               TextFormField(
                 controller: passwordController,
+                focusNode: passwordFocus,
                 obscureText: _obscurePassword,
+                style: const TextStyle(color: Colors.black),
+                cursorColor: Colors.orange,
                 decoration: InputDecoration(
                   labelText: "Password",
-                  prefixIcon: Icon(Icons.lock, color: Colors.green[700]),
+                  labelStyle: TextStyle(
+                    color:
+                        passwordFocus.hasFocus ? Colors.orange : Colors.grey,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.lock,
+                    color: passwordFocus.hasFocus
+                        ? Colors.orange
+                        : Colors.green[700],
+                  ),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
@@ -126,6 +186,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        const BorderSide(color: Colors.orange, width: 2),
                   ),
                   filled: true,
                   fillColor: Colors.grey[50],
@@ -182,13 +247,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black, // ✅ FIXED
+                          color: Colors.white,
                         ),
                       ),
               ),
 
               const SizedBox(height: 30),
-
+                
               Row(
                 children: const [
                   Expanded(child: Divider()),

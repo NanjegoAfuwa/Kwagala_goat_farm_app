@@ -80,8 +80,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Create Account"),
-        backgroundColor: Colors.green[700], // Farm-themed color
+        title: Text(
+          "Create Account",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.green[700],
+        iconTheme: IconThemeData(color: Colors.white),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -126,25 +133,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
               // Name Field
               TextFormField(
                 controller: nameController,
+                cursorColor: Colors.deepOrange,
                 decoration: InputDecoration(
                   labelText: "Full Name",
-                  prefixIcon: Icon(Icons.person),
+                  prefixIcon: Icon(Icons.person, color: Colors.green),
                   border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.deepOrange, width: 2),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.deepOrange, width: 2),
+                  ),
+                  labelStyle: TextStyle(color: Colors.grey),
+                  floatingLabelStyle: TextStyle(color: Colors.deepOrange),
                   filled: true,
                   fillColor: Colors.grey[50],
                 ),
                 validator: _validateName,
                 textInputAction: TextInputAction.next,
               ),
+
               SizedBox(height: 20),
 
               // Email Field
               TextFormField(
                 controller: emailController,
+                cursorColor: Colors.deepOrange,
                 decoration: InputDecoration(
                   labelText: "Email Address",
-                  prefixIcon: Icon(Icons.email),
+                  prefixIcon: Icon(Icons.email, color: Colors.green),
                   border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.deepOrange, width: 2),
+                  ),
+                  labelStyle: TextStyle(color: Colors.grey),
+                  floatingLabelStyle: TextStyle(color: Colors.deepOrange),
                   filled: true,
                   fillColor: Colors.grey[50],
                 ),
@@ -152,21 +175,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
               ),
+
               SizedBox(height: 20),
 
-              // Password Field with visibility toggle
+              // Password Field
               TextFormField(
                 controller: passwordController,
                 obscureText: _obscurePassword,
+                cursorColor: Colors.deepOrange,
                 decoration: InputDecoration(
                   labelText: "Password",
-                  prefixIcon: Icon(Icons.lock),
+                  prefixIcon: Icon(Icons.lock, color: Colors.green),
                   border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.deepOrange, width: 2),
+                  ),
+                  labelStyle: TextStyle(color: Colors.grey),
+                  floatingLabelStyle: TextStyle(color: Colors.deepOrange),
                   filled: true,
                   fillColor: Colors.grey[50],
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.green,
                     ),
                     onPressed: () {
                       setState(() {
@@ -202,7 +233,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       )
                     : Text(
                         "Create Account",
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
                       ),
               ),
 

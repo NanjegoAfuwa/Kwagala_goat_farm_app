@@ -12,7 +12,8 @@ class EditFarmScreen extends StatefulWidget {
 class _EditFarmScreenState extends State<EditFarmScreen> {
   // Existing farm info
   String existingName = "Kwagala Goat Farm";
-  String existingLog = "Leading goat farm in Uganda, focusing on quality breeding and care.";
+  String existingLog =
+      "Leading goat farm in Uganda, focusing on quality breeding and care.";
   String existingLocation = "Kampala, Uganda";
   int existingGoats = 25;
   String existingHealthStatus = "Healthy";
@@ -24,7 +25,7 @@ class _EditFarmScreenState extends State<EditFarmScreen> {
   final TextEditingController _goatsController = TextEditingController();
   final TextEditingController _healthController = TextEditingController();
 
-  File? _farmImage; // Selected image file
+  File? _farmImage;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -63,7 +64,6 @@ class _EditFarmScreenState extends State<EditFarmScreen> {
     int goats = int.tryParse(_goatsController.text) ?? 0;
     String health = _healthController.text;
 
-    // TODO: Save logic
     print("Farm Name: $name");
     print("Log: $log");
     print("Location: $location");
@@ -88,7 +88,19 @@ class _EditFarmScreenState extends State<EditFarmScreen> {
         preferredSize: const Size.fromHeight(60),
         child: AppBar(
           backgroundColor: Colors.green.shade700,
-          title: const Text("Edit Farm Info"),
+
+          // ✅ WHITE BOLD TITLE
+          title: const Text(
+            "Edit Farm Info",
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+
+          // ✅ WHITE BACK ARROW
+          iconTheme: const IconThemeData(color: Colors.white),
+
           centerTitle: true,
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(3),
@@ -128,7 +140,8 @@ class _EditFarmScreenState extends State<EditFarmScreen> {
                           backgroundColor: Colors.white,
                           backgroundImage: _farmImage != null
                               ? FileImage(_farmImage!)
-                              : const AssetImage('assets/farm_placeholder.jpg')
+                              : const AssetImage(
+                                      'assets/farm_placeholder.jpg')
                                   as ImageProvider,
                         ),
                         Positioned(
@@ -175,15 +188,32 @@ class _EditFarmScreenState extends State<EditFarmScreen> {
               // ================= Editable Form =================
               Column(
                 children: [
-                  _buildTextField(controller: _nameController, label: "Farm Name", icon: Icons.home_work),
+                  _buildTextField(
+                      controller: _nameController,
+                      label: "Farm Name",
+                      icon: Icons.home_work),
                   const SizedBox(height: 12),
-                  _buildTextField(controller: _logController, label: "Farm Log", icon: Icons.description, maxLines: 3),
+                  _buildTextField(
+                      controller: _logController,
+                      label: "Farm Log",
+                      icon: Icons.description,
+                      maxLines: 3),
                   const SizedBox(height: 12),
-                  _buildTextField(controller: _locationController, label: "Location", icon: Icons.location_on),
+                  _buildTextField(
+                      controller: _locationController,
+                      label: "Location",
+                      icon: Icons.location_on),
                   const SizedBox(height: 12),
-                  _buildTextField(controller: _goatsController, label: "Number of Goats", icon: Icons.pets, keyboardType: TextInputType.number),
+                  _buildTextField(
+                      controller: _goatsController,
+                      label: "Number of Goats",
+                      icon: Icons.pets,
+                      keyboardType: TextInputType.number),
                   const SizedBox(height: 12),
-                  _buildTextField(controller: _healthController, label: "Health Status", icon: Icons.health_and_safety),
+                  _buildTextField(
+                      controller: _healthController,
+                      label: "Health Status",
+                      icon: Icons.health_and_safety),
                 ],
               ),
 
@@ -195,11 +225,20 @@ class _EditFarmScreenState extends State<EditFarmScreen> {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: _saveFarmInfo,
-                  child: const Text("Save Changes", style: TextStyle(fontSize: 16, color: Colors.white)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade700,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+
+                  // ✅ WHITE BUTTON TEXT
+                  child: const Text(
+                    "Save Changes",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
@@ -211,7 +250,6 @@ class _EditFarmScreenState extends State<EditFarmScreen> {
     );
   }
 
-  // ================= Helper Method for Input Fields =================
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -222,7 +260,6 @@ class _EditFarmScreenState extends State<EditFarmScreen> {
     return Focus(
       child: Builder(
         builder: (context) {
-          final hasFocus = Focus.of(context).hasFocus;
           return TextField(
             controller: controller,
             maxLines: maxLines,
@@ -234,10 +271,12 @@ class _EditFarmScreenState extends State<EditFarmScreen> {
               fillColor: Colors.white,
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.orange, width: 2)),
+                  borderSide:
+                      const BorderSide(color: Colors.orange, width: 2)),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.white, width: 2)),
+                  borderSide:
+                      const BorderSide(color: Colors.white, width: 2)),
             ),
           );
         },
