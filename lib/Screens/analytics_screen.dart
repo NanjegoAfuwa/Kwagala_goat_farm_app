@@ -3,132 +3,104 @@ import 'package:flutter/material.dart';
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({Key? key}) : super(key: key);
 
+  // Modular data structures collection list to map items safely
+  final List<Map<String, dynamic>> _analyticsSummary = const [
+    {"label": "Boer Group", "fraction": 0.65, "count": "54", "color": Colors.blue},
+    {"label": "Kalahari", "fraction": 0.40, "count": "32", "color": Colors.purple},
+    {"label": "Savanna", "fraction": 0.25, "count": "18", "color": Colors.teal},
+    {"label": "Locals", "fraction": 0.15, "count": "11", "color": Colors.orange},
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+    final Color primaryGreen = Colors.green.shade700;
 
-      // ✅ APP BAR
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        elevation: 4,
-        backgroundColor: Colors.green.shade700,
-        centerTitle: false,
-        titleSpacing: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(3),
-          child: Container(
-            height: 3,
-            color: Colors.orange,
-          ),
-        ),
-        title: const Padding(
-          padding: EdgeInsets.only(left: 16),
-          child: Text(
-            "Analytics",
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 18,
-              color: Colors.white,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0F172A),
+        title: const Text("Farm Analytics Center", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
       ),
-
       body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            const Text(
-              "Farm Overview",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ================= STAT CARDS
-            GridView.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: 14,
-              mainAxisSpacing: 14,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: const [
-                StatCard(title: "Total Goats", value: "125", icon: Icons.pets, color: Colors.green),
-                StatCard(title: "Male", value: "48", icon: Icons.male, color: Colors.blue),
-                StatCard(title: "Female", value: "77", icon: Icons.female, color: Colors.pink),
-                StatCard(title: "Growth Rate", value: "+12%", icon: Icons.trending_up, color: Colors.orange),
-              ],
-            ),
-
-            const SizedBox(height: 30),
-
-            const Text(
-              "Monthly Growth",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ================= SIMPLE BAR CHART
+            // Dynamic Header Visual block
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
+                gradient: LinearGradient(colors: [primaryGreen, Colors.green.shade900]),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Column(
-                children: const [
-                  BarRow(label: "Jan", value: 40),
-                  SizedBox(height: 12),
-                  BarRow(label: "Feb", value: 60),
-                  SizedBox(height: 12),
-                  BarRow(label: "Mar", value: 90),
-                  SizedBox(height: 12),
-                  BarRow(label: "Apr", value: 70),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 30),
-
-            const Text(
-              "Gender Distribution",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ================= SIMPLE PIE CHART
-            SizedBox(
-              height: 200,
-              child: Stack(
-                alignment: Alignment.center,
+              child: const Row(
                 children: [
-                  PieSlice(color: Colors.blue, percentage: 38),
-                  PieSlice(color: Colors.pink, percentage: 62),
-                  const Text(
-                    "Goats",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                  Icon(Icons.analytics_outlined, size: 40, color: Colors.white),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Performance Matrix", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                        SizedBox(height: 4),
+                        Text("Realtime analytical data metrics calculated over current cycles.", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            const Text("BREED REPARTITION OUTPUTS", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5)),
+            const SizedBox(height: 10),
+
+            // Functional loop generation maps widgets smoothly dynamically
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))),
+              child: Column(
+                children: _analyticsSummary.map((data) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: AnalyticsBarRow(
+                    label: data["label"],
+                    fraction: data["fraction"],
+                    count: data["count"],
+                    color: data["color"],
+                  ),
+                )).toList(),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+            const Text("HEALTH RECOVERY INDEX RATIO", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5)),
+            const SizedBox(height: 10),
+
+            // Operational Financial and Structural split segment info boxes
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))),
+              child: Row(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
+                    child: Icon(Icons.gpp_good_outlined, color: primaryGreen),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text("94.4% Overall Safe Rating", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A))),
+                        SizedBox(height: 4),
+                        Text("Stable condition margin metrics across entire herds.", style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                      ],
                     ),
                   )
                 ],
@@ -141,110 +113,43 @@ class AnalyticsScreen extends StatelessWidget {
   }
 }
 
-// ================= STAT CARD
-class StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
+class AnalyticsBarRow extends StatelessWidget {
+  final String label;
+  final double fraction;
+  final String count;
   final Color color;
 
-  const StatCard({
+  const AnalyticsBarRow({
     Key? key,
-    required this.title,
-    required this.value,
-    required this.icon,
+    required this.label,
+    required this.fraction,
+    required this.count,
     required this.color,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 36),
-          const SizedBox(height: 10),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ================= SIMPLE BAR ROW
-class BarRow extends StatelessWidget {
-  final String label;
-  final double value;
-
-  const BarRow({Key? key, required this.label, required this.value})
-      : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 40, child: Text(label)),
-        Expanded(
-          child: Stack(
-            children: [
-              Container(
-                height: 16,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              Container(
-                height: 16,
-                width: value * 3, // scale factor
-                decoration: BoxDecoration(
-                  color: Colors.green.shade700,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ],
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+            Text("$count Goats", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Stack(
+          children: [
+            Container(height: 8, decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(4))),
+            FractionallySizedBox(
+              widthFactor: fraction,
+              child: Container(height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4))),
+            ),
+          ],
         ),
       ],
-    );
-  }
-}
-
-// ================= SIMPLE PIE CHART SLICE
-class PieSlice extends StatelessWidget {
-  final Color color;
-  final double percentage;
-
-  const PieSlice({Key? key, required this.color, required this.percentage})
-      : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return FractionallySizedBox(
-      widthFactor: percentage / 100,
-      child: Container(
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
-      ),
     );
   }
 }

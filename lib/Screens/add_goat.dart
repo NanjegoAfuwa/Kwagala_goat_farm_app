@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 class AddGoatScreen extends StatefulWidget {
   const AddGoatScreen({Key? key}) : super(key: key);
@@ -11,203 +9,235 @@ class AddGoatScreen extends StatefulWidget {
 
 class _AddGoatScreenState extends State<AddGoatScreen> {
   final _formKey = GlobalKey<FormState>();
+  
+  final _nameController = TextEditingController();
+  final _tagController = TextEditingController();
+  final _ageController = TextEditingController();
+  final _weightController = TextEditingController();
 
-  // Controllers
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _breedController = TextEditingController();
-  final TextEditingController _genderController = TextEditingController();
-  final TextEditingController _ageController = TextEditingController();
-  final TextEditingController _weightController = TextEditingController();
-  final TextEditingController _healthController = TextEditingController();
-  final TextEditingController _dateController = TextEditingController();
+  String _selectedBreed = "Boer";
+  String _selectedGender = "Female";
 
-  // Image Picker
-  File? _goatImage;
-  final ImagePicker _picker = ImagePicker();
-
-  Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        _goatImage = File(image.path);
-      });
-    }
-  }
-
-  void _saveGoat() {
-    if (_formKey.currentState!.validate()) {
-      String name = _nameController.text;
-      String breed = _breedController.text;
-      String gender = _genderController.text;
-      String age = _ageController.text;
-      String weight = _weightController.text;
-      String health = _healthController.text;
-      String date = _dateController.text;
-
-      print("Goat Name: $name");
-      print("Breed: $breed");
-      print("Gender: $gender");
-      print("Age: $age");
-      print("Weight: $weight");
-      print("Health: $health");
-      print("Date Added: $date");
-      print("Image Path: ${_goatImage?.path ?? 'No image selected'}");
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Goat added successfully!"),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      Navigator.pop(context);
-    }
-  }
+  final List<String> _breeds = ["Boer", "Kalahari", "Savanna", "Local"];
+  final List<String> _genders = ["Female", "Male"];
 
   @override
   void dispose() {
     _nameController.dispose();
-    _breedController.dispose();
-    _genderController.dispose();
+    _tagController.dispose();
     _ageController.dispose();
     _weightController.dispose();
-    _healthController.dispose();
-    _dateController.dispose();
     super.dispose();
+  }
+
+  void _submitForm() {
+    if (!_formKey.currentState!.validate()) return;
+
+    // Generate random internal system database placeholder IDs for simplicity
+    final String systematicId = "GT0${UniqueKey().hashCode.toString().substring(0, 2)}";
+
+    // Combines inputs into the required schema object structure
+    final Map<String, String> newGoatData = {
+      "id": systematicId,
+      "name": _nameController.text.trim(),
+      "breed": _selectedBreed,
+      "gender": _selectedGender,
+      "age": _ageController.text.trim(),
+      "weight": "${_weightController.text.trim()} kg",
+      "dateAdded": "Today",
+      "tag": _tagController.text.trim().toUpperCase(),
+    };
+
+    // Pops back context, returning data cleanly to GoatsScreen
+    Navigator.pop(context, newGoatData);
   }
 
   @override
   Widget build(BuildContext context) {
-    double width = MediaQuery.of(context).size.width;
+    final Color primaryGreen = Colors.green.shade700;
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text("Add Goat"),
+        title: const Text("Register New Goat", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0F172A),
+        elevation: 0,
         centerTitle: true,
-        backgroundColor: Colors.green,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(2),
-          child: Container(
-            color: Colors.orange,
-            height: 2,
-          ),
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: const Color(0xFFE2E8F0), height: 1),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // Goat Image
-              Stack(
-                children: [
-                  CircleAvatar(
-                    radius: width * 0.2,
-                    backgroundColor: Colors.white,
-                    backgroundImage: _goatImage != null
-                        ? FileImage(_goatImage!)
-                        : const AssetImage('assets/goat_placeholder.jpg')
-                            as ImageProvider,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: InkWell(
-                      onTap: _pickImage,
-                      child: CircleAvatar(
-                        radius: width * 0.06,
-                        backgroundColor: Colors.orange,
-                        child: const Icon(
-                          Icons.edit,
-                          color: Colors.white,
-                        ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionHeader("Identity Metrics"),
+                const SizedBox(height: 12),
+                _buildInputField(
+                  label: "Goat Name / Alias",
+                  hint: "e.g., Lucky, Bella",
+                  icon: Icons.badge_outlined,
+                  controller: _nameController,
+                ),
+                const SizedBox(height: 16),
+                _buildInputField(
+                  label: "Ear Tag Code",
+                  hint: "e.g., A102, B305",
+                  icon: Icons.tag_rounded,
+                  controller: _tagController,
+                ),
+                
+                const SizedBox(height: 28),
+                _buildSectionHeader("Categorization"),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildDropdownField(
+                        label: "Breed Selection",
+                        value: _selectedBreed,
+                        options: _breeds,
+                        onChanged: (v) => setState(() => _selectedBreed = v!),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Goat Details Form
-              _buildTextField(_nameController, "Goat Name", Icons.pets),
-              const SizedBox(height: 12),
-              _buildTextField(_breedController, "Breed", Icons.home_work),
-              const SizedBox(height: 12),
-              _buildTextField(_genderController, "Gender", Icons.wc),
-              const SizedBox(height: 12),
-              _buildTextField(_ageController, "Age (months)", Icons.calendar_today,
-                  keyboardType: TextInputType.number),
-              const SizedBox(height: 12),
-              _buildTextField(
-                  _weightController, "Weight (kg)", Icons.line_weight,
-                  keyboardType: TextInputType.number),
-              const SizedBox(height: 12),
-              _buildTextField(_healthController, "Health Status", Icons.health_and_safety),
-              const SizedBox(height: 12),
-              _buildTextField(_dateController, "Date Added", Icons.date_range),
-
-              const SizedBox(height: 30),
-
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _saveGoat,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildDropdownField(
+                        label: "Gender / Sex",
+                        value: _selectedGender,
+                        options: _genders,
+                        onChanged: (v) => setState(() => _selectedGender = v!),
+                      ),
                     ),
+                  ],
+                ),
+
+                const SizedBox(height: 28),
+                _buildSectionHeader("Growth Parameters"),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildInputField(
+                        label: "Age Description",
+                        hint: "e.g., 12 months",
+                        icon: Icons.calendar_today_outlined,
+                        controller: _ageController,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildInputField(
+                        label: "Live Weight (KG)",
+                        hint: "e.g., 34",
+                        icon: Icons.scale_outlined,
+                        controller: _weightController,
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 40),
+
+                ElevatedButton(
+                  onPressed: _submitForm,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryGreen,
+                    minimumSize: const Size.fromHeight(54),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text(
-                    "Add Goat",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
+                    "Save Goat Profile",
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 15),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // Helper for Text Fields with orange label on focus
-  Widget _buildTextField(
-      TextEditingController controller, String label, IconData icon,
-      {TextInputType keyboardType = TextInputType.text}) {
-    return Focus(
-      child: Builder(builder: (context) {
-        final hasFocus = Focus.of(context).hasFocus;
-        return TextFormField(
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF475569), letterSpacing: 0.3),
+    );
+  }
+
+  Widget _buildInputField({
+    required String label,
+    required String hint,
+    required IconData icon,
+    required TextEditingController controller,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+        const SizedBox(height: 6),
+        TextFormField(
           controller: controller,
           keyboardType: keyboardType,
-          validator: (val) {
-            if (val == null || val.isEmpty) return "Please enter $label";
-            return null;
-          },
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF0F172A)),
+          validator: (v) => (v == null || v.trim().isEmpty) ? "Field cannot be left blank" : null,
           decoration: InputDecoration(
-            labelText: label,
-            labelStyle: TextStyle(
-              color: hasFocus ? Colors.orange : Colors.grey.shade700, // 🔹 Label turns orange on focus
-            ),
-            prefixIcon: Icon(icon, color: Colors.green.shade700),
+            hintText: hint,
+            hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF94A3B8)),
+            prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 20),
             filled: true,
             fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.orange, width: 2),
+            contentPadding: const EdgeInsets.symmetric(vertical: 16),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.green.shade700, width: 1.5)),
+            errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red, width: 1)),
+            focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red, width: 1.5)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDropdownField({
+    required String label,
+    required String value,
+    required List<String> options,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              isExpanded: true,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF0F172A), fontWeight: FontWeight.w500),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
+              items: options.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+              onChanged: onChanged,
             ),
           ),
-        );
-      }),
+        ),
+      ],
     );
   }
 }
