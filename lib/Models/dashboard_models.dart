@@ -40,11 +40,21 @@ class AlertModel {
   });
 
   factory AlertModel.fromJson(Map<String, dynamic> json) {
+    // Be defensive: support multiple possible field names and missing timestamps
+    final rawMessage = json['message'] ?? json['display'] ?? json['title'] ?? '';
+    final rawSeverity = json['severity'] ?? json['level'] ?? 'info';
+    DateTime parsedAt;
+    try {
+      parsedAt = json['created_at'] != null ? DateTime.parse(json['created_at']) : DateTime.now();
+    } catch (_) {
+      parsedAt = DateTime.now();
+    }
+
     return AlertModel(
-      id: json['id'],
-      message: json['message'] ?? '',
-      severity: json['severity'] ?? 'info',
-      createdAt: DateTime.parse(json['created_at']),
+      id: json['id'] ?? 0,
+      message: rawMessage,
+      severity: rawSeverity,
+      createdAt: parsedAt,
     );
   }
 }

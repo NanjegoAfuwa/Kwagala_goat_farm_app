@@ -9,20 +9,49 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  bool _hasPreloadedImages = false;
+
   @override
   void initState() {
     super.initState();
-    _navigateToOnboarding();
+    _initializeSplash();
   }
 
-  void _navigateToOnboarding() async {
-    // 3-second delay for the presentation of the branding logo
-    await Future.delayed(const Duration(seconds: 3));
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasPreloadedImages) {
+      _hasPreloadedImages = true;
+      _preloadOnboardingImages();
+    }
+  }
+
+  Future<void> _initializeSplash() async {
+    try {
+      await Future.delayed(const Duration(seconds: 3));
+    } catch (_) {
+      // ignore
+    }
     if (mounted) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const OnBoardingScreen()),
       );
+    }
+  }
+
+  Future<void> _preloadOnboardingImages() async {
+    const images = [
+      'Assets/background1.jpg',
+      'Assets/background2.jpg',
+      'Assets/background3.jpg',
+    ];
+    for (final image in images) {
+      try {
+        await precacheImage(AssetImage(image), context);
+      } catch (_) {
+        // Ignore missing asset if it fails, we still navigate after splash.
+      }
     }
   }
 
@@ -53,7 +82,7 @@ class _SplashScreenState extends State<SplashScreen> {
                     ],
                   ),
                   child: Image.asset(
-                    "assets/farm.png",
+                    "Assets/farm.png",
                     height: 80,
                     width: 80,
                     errorBuilder: (context, error, stackTrace) =>

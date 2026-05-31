@@ -9,7 +9,7 @@ class GoatsExplorerScreen extends StatefulWidget {
   State<GoatsExplorerScreen> createState() => _GoatsExplorerScreenState();
 }
 
-class _ResetPasswordVerifyScreenState extends State<GoatsExplorerScreen> {
+class _GoatsExplorerScreenState extends State<GoatsExplorerScreen> {
   late Future<List<GoatModel>> _goatsFuture;
 
   @override

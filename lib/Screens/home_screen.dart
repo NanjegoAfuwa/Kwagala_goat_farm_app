@@ -1,7 +1,10 @@
 import 'dart:async';
-import 'dart:convert'; // Added for JSON utility handling if needed by components
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:kwagala_farm/Services/api_service.dart'; // 👈 Necessary connection service import
+import 'package:http/http.dart' as http;
+import 'package:kwagala_farm/Services/api_service.dart';
+import '../Models/goat_model.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -18,22 +21,14 @@ class _HomeScreenState extends State<HomeScreen> {
   // 👈 State indicators added to manage live network connection environments cleanly
   bool _isLoadingDashboard = true;
   String? _networkError;
+  bool _isFirstAlertFetch = true; // Track if we've never fetched alerts before
+
+  List<GoatModel> _allGoats = [];
+  List<GoatModel> _pregnantGoats = [];
 
   // Structured live feed alerts with their respective converted operational task text
-  List<Map<String, String>> _tickerAlerts = [
-    {
-      "display": "⚠️ Alert: Severe rainfall tracking towards Kampala region this evening, secure shelters.",
-      "task": "Secure shelters for evening severe rainfall alert"
-    },
-    {
-      "display": "💉 Veterinary Schedule: 4 Kalahari breeders due for booster inoculations tomorrow.",
-      "task": "Administer booster inoculations to Kalahari breeders"
-    },
-    {
-      "display": "📈 Farm Analytics: Overall flock health optimization rating is holding steady at 96% variance capacity.",
-      "task": "Review flock health optimization variance logs"
-    },
-  ];
+  // Start empty—will be populated from API or defaults only on initial fetch
+  List<Map<String, String>> _tickerAlerts = [];
 
   // Updated Checklist Array containing your newly converted task from chat
   List<Map<String, dynamic>> _dailyTasks = [
@@ -60,11 +55,27 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      // Pull tasks and alerts concurrently from ApiService
+      // Pull tasks, alerts, and goats concurrently from ApiService
       final liveAlertsList = await ApiService.fetchLiveAlerts();
       final liveTasksList = await ApiService.fetchTasks();
+      final liveGoatsList = await ApiService.fetchGoats();
+      // Debug: print fetched alerts to aid troubleshooting
+      try {
+        // ignore: avoid_print
+        print('HomeScreen: fetched ${liveAlertsList.length} alerts');
+        for (var a in liveAlertsList) {
+          // ignore: avoid_print
+          print('  alert -> id:${a.id} severity:${a.severity} message:${a.message} created:${a.createdAt}');
+        }
+      } catch (_) {}
+
+      // Remember previous alerts count so we can detect changes
+      final previousAlertCount = _tickerAlerts.length;
 
       setState(() {
+        _allGoats = liveGoatsList;
+        _pregnantGoats = liveGoatsList.where((g) => g.isPregnant).toList();
+
         // Map Django Live Alerts into your local string payload formats if endpoints possess data
         if (liveAlertsList.isNotEmpty) {
           _tickerAlerts = liveAlertsList.map((alert) {
@@ -74,7 +85,26 @@ class _HomeScreenState extends State<HomeScreen> {
               "task": alert.message,
             };
           }).toList();
+          _isFirstAlertFetch = false;
+        } else if (_isFirstAlertFetch) {
+          // Only populate defaults on first fetch if API returns empty
+          _tickerAlerts = [
+            {
+              "display": "⚠️ Alert: Severe rainfall tracking towards Kampala region this evening, secure shelters.",
+              "task": "Secure shelters for evening severe rainfall alert"
+            },
+            {
+              "display": "💉 Veterinary Schedule: 4 Kalahari breeders due for booster inoculations tomorrow.",
+              "task": "Administer booster inoculations to Kalahari breeders"
+            },
+            {
+              "display": "📈 Farm Analytics: Overall flock health optimization rating is holding steady at 96% variance capacity.",
+              "task": "Review flock health optimization variance logs"
+            },
+          ];
+          _isFirstAlertFetch = false;
         }
+        // On subsequent fetches where API returns empty, keep the previous alerts (don't reset)
 
         // Map Django tasks backend database cleanly directly over your fallback items
         if (liveTasksList.isNotEmpty) {
@@ -88,6 +118,19 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         
         _isLoadingDashboard = false;
+      });
+
+      // If alerts changed, reset the ticker position and restart animation
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          if (mounted && _tickerScrollController.hasClients) {
+            if (_tickerAlerts.length != previousAlertCount) {
+              _tickerTimer?.cancel();
+              _tickerScrollController.jumpTo(0.0);
+              _startTickerAnimation();
+            }
+          }
+        } catch (_) {}
       });
     } catch (e) {
       setState(() {
@@ -129,16 +172,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startTickerAnimation() {
-    _tickerTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+    _tickerTimer = Timer.periodic(const Duration(milliseconds: 40), (timer) {
       if (_tickerScrollController.hasClients) {
-        double maxExtent = _tickerScrollController.position.maxScrollExtent;
-        double currentPosition = _tickerScrollController.position.pixels;
-        
-        // Loop back to start smoothly once it passes the text boundary
-        if (currentPosition >= maxExtent) {
+        final scrollPosition = _tickerScrollController.position;
+        final maxExtent = scrollPosition.maxScrollExtent;
+        final currentPosition = scrollPosition.pixels;
+
+        if (maxExtent <= 0) return;
+
+        final nextPosition = currentPosition + 1.5;
+        if (nextPosition >= maxExtent) {
           _tickerScrollController.jumpTo(0.0);
         } else {
-          _tickerScrollController.jumpTo(currentPosition + 1.0);
+          _tickerScrollController.jumpTo(nextPosition);
         }
       }
     });
@@ -461,46 +507,36 @@ class _HomeScreenState extends State<HomeScreen> {
                           controller: _tickerScrollController,
                           scrollDirection: Axis.horizontal,
                           physics: const NeverScrollableScrollPhysics(),
-                          itemCount: 1,
+                          itemCount: _tickerAlerts.length * 2,
                           itemBuilder: (context, index) {
-                            return Container(
-                              alignment: Alignment.center,
-                              padding: const EdgeInsets.only(left: 16),
-                              child: Row(
-                                children: [
-                                  ..._tickerAlerts.map((alert) {
-                                    return InkWell(
-                                      onTap: () => _convertAlertToTask(alert["task"]!, alert["display"]!),
-                                      splashColor: Colors.orange.withOpacity(0.3),
-                                      highlightColor: Colors.transparent,
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(right: 48.0),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              "${alert["display"]} ",
-                                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
-                                            ),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: Colors.orange.shade800.withOpacity(0.4),
-                                                borderRadius: BorderRadius.circular(4),
-                                                border: Border.all(color: Colors.orange.shade600, width: 0.5),
-                                              ),
-                                              child: const Text(
-                                                "⚡ Convert to Task",
-                                                style: TextStyle(color: Colors.orangeAccent, fontSize: 9, fontWeight: FontWeight.bold),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                            final alert = _tickerAlerts[index % _tickerAlerts.length];
+                            return InkWell(
+                              onTap: () => _convertAlertToTask(alert["task"]!, alert["display"]!),
+                              splashColor: Colors.orange.withOpacity(0.3),
+                              highlightColor: Colors.transparent,
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 16, right: 48.0),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      "${alert["display"]} ",
+                                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.shade800.withOpacity(0.4),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: Colors.orange.shade600, width: 0.5),
                                       ),
-                                    );
-                                  }).toList(),
-                                  const SizedBox(width: 120),
-                                ],
+                                      child: const Text(
+                                        "⚡ Convert to Task",
+                                        style: TextStyle(color: Colors.orangeAccent, fontSize: 9, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             );
                           },

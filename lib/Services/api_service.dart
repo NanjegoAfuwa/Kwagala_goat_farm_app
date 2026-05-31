@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 // 1. FIXED: Explicitly pull in your data models folder so Dart can read 'GoatModel'
-import '../Models/goat_model.dart'; 
+import '../Models/goat_model.dart';
+import '../Models/dashboard_models.dart'; 
 
 class ApiService {
   static const String baseUrl = "http://127.0.0.1:8000/api/";
@@ -132,6 +133,24 @@ class ApiService {
       }
     } catch (e) {
       throw Exception("Unable to establish communication stream pipeline: $e");
+    }
+  }
+
+  // ADD NEW GOAT RECORD
+  static Future<bool> addGoat(GoatModel goat) async {
+    try {
+      final token = await getToken();
+      final response = await http.post(
+        Uri.parse("${baseUrl}goats/"),
+        headers: {
+          "Content-Type": "application/json",
+          if (token != null) "Authorization": "Token $token",
+        },
+        body: json.encode(goat.toJson()),
+      );
+      return response.statusCode == 201 || response.statusCode == 200;
+    } catch (e) {
+      return false;
     }
   }
 

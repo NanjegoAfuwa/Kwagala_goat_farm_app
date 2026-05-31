@@ -16,28 +16,28 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
     {
       "title": "Welcome to Kwagala Farm",
       "subtitle": "Manage goats, track health metric analytics, feed intervals, and sales easily.",
-      "image": "assets/background1.jpg",
+      "image": "Assets/background1.jpg",
     },
     {
       "title": "Track Goats Effortlessly",
       "subtitle": "Record complete animal details including precise breed profiles, age, weight updates, and health conditions.",
-      "image": "assets/background2.jpg",
+      "image": "Assets/background2.jpg",
     },
     {
       "title": "Smart Farm Management",
       "subtitle": "Monitor financial transactions, receive prompt health alerts, and maximize your overall farm productivity.",
-      "image": "assets/background3.jpg",
+      "image": "Assets/background3.jpg",
     },
   ];
 
   @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // ⚡ PRELOAD PIPELINE: Forces system cache to grab asset photos ahead of time 
-    // so background pictures and words load exactly together without any blank frames.
-    for (var page in _pages) {
-      precacheImage(AssetImage(page["image"]!), context);
-    }
   }
 
   @override
@@ -51,11 +51,12 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
     bool isLastPage = _currentPage == _pages.length - 1;
 
     return Scaffold(
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // 1. BACKDROP IMAGE CONTEXT ROUTER
           PageView.builder(
             controller: _controller,
+            physics: const NeverScrollableScrollPhysics(),
             onPageChanged: (index) {
               setState(() {
                 _currentPage = index;
@@ -69,57 +70,48 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                   Image.asset(
                     _pages[index]["image"]!,
                     fit: BoxFit.cover,
-                    // FIX: Container changed to SizedBox.shrink to correctly compile under 'const' parameters
-                    errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                    gaplessPlayback: true,
+                    errorBuilder: (context, error, stackTrace) => Container(color: Colors.black),
                   ),
-                  // High contrast text protective dark screen filter
                   Container(
                     color: Colors.black.withOpacity(0.65),
+                  ),
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            _pages[index]["title"]!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _pages[index]["subtitle"]!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFFE2E8F0),
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               );
             },
           ),
-
-          // 2. PERFECTLY CENTERED WORDS LAYER
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32.0),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: Column(
-                  key: ValueKey<int>(_currentPage),
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      _pages[_currentPage]["title"]!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _pages[_currentPage]["subtitle"]!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Color(0xFFE2E8F0),
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // 3. NAVIGATION CONTROLS & DYNAMIC POSITION BUTTON DECK
           Positioned(
             bottom: 50,
             left: 24,
@@ -127,7 +119,6 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ALWAYS CENTERED STEP INDICATOR DOTS
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
@@ -145,8 +136,6 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-
-                // DYNAMIC ACTION BUTTON ALIGNMENT DECK
                 Align(
                   alignment: isLastPage ? Alignment.center : Alignment.centerRight,
                   child: ElevatedButton(
@@ -172,8 +161,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                     child: Text(
                       isLastPage ? "Get Started" : "Next",
                       style: const TextStyle(
-                        fontWeight: FontWeight.bold, 
-                        color: Colors.white, 
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                         fontSize: 14,
                       ),
                     ),

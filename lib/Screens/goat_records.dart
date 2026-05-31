@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'add_goat.dart';
+import '../Services/api_service.dart';
+import '../Models/goat_model.dart';
 
 class GoatsScreen extends StatefulWidget {
   const GoatsScreen({Key? key}) : super(key: key);
@@ -18,37 +20,39 @@ class _GoatsScreenState extends State<GoatsScreen> {
   final List<String> breeds = ["All Breeds", "Boer", "Kalahari", "Savanna", "Local"];
   final List<String> genders = ["All", "Male", "Female"];
 
-  final List<Map<String, String>> goats = [
-    {
-      "id": "GT001",
-      "name": "Lucky",
-      "breed": "Boer",
-      "gender": "Male",
-      "age": "14 months",
-      "weight": "32 kg",
-      "dateAdded": "12 Jan 2026",
-      "tag": "A101"
-    },
-    {
-      "id": "GT002",
-      "name": "Daisy",
-      "breed": "Kalahari",
-      "gender": "Female",
-      "age": "8 months",
-      "weight": "24 kg",
-      "dateAdded": "18 Feb 2026",
-      "tag": "B204"
-    }
-  ];
+  List<GoatModel> _goats = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _fetchGoats();
     _searchController.addListener(() {
       setState(() {
         searchQuery = _searchController.text.toLowerCase();
       });
     });
+  }
+
+  Future<void> _fetchGoats() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final goatsList = await ApiService.fetchGoats();
+      setState(() {
+        _goats = goatsList;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -61,16 +65,16 @@ class _GoatsScreenState extends State<GoatsScreen> {
   Widget build(BuildContext context) {
     final Color primaryGreen = Colors.green.shade700;
 
-    final filteredGoats = goats.where((goat) {
+    final filteredGoats = _goats.where((goat) {
       final matchesBreed = selectedBreed == "All Breeds" || 
-          (goat["breed"]?.toLowerCase() == selectedBreed.toLowerCase());
+          (goat.breed.toLowerCase() == selectedBreed.toLowerCase());
           
       final matchesGender = selectedGender == "All" || 
-          (goat["gender"]?.toLowerCase() == selectedGender.toLowerCase());
+          (goat.gender.toLowerCase() == selectedGender.toLowerCase());
 
-      final matchesSearch = goat["name"]!.toLowerCase().contains(searchQuery) ||
-          goat["id"]!.toLowerCase().contains(searchQuery) ||
-          goat["tag"]!.toLowerCase().contains(searchQuery);
+      final matchesSearch = goat.name.toLowerCase().contains(searchQuery) ||
+          goat.id.toString().contains(searchQuery) ||
+          goat.tagNumber.toLowerCase().contains(searchQuery);
 
       return matchesBreed && matchesGender && matchesSearch;
     }).toList();
@@ -88,22 +92,23 @@ class _GoatsScreenState extends State<GoatsScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)),
+            onPressed: _fetchGoats,
+          ),
+          IconButton(
             icon: Icon(Icons.add_circle_outline_rounded, color: primaryGreen, size: 26),
             onPressed: () async {
-              // Navigates to form screen and awaits new map input parameters safely
-              final Map<String, String>? newlyCreatedGoat = await Navigator.push<Map<String, String>>(
+              // Navigates to form screen and awaits new record creation feedback safely
+              final bool? success = await Navigator.push<bool>(
                 context,
                 MaterialPageRoute(builder: (_) => const AddGoatScreen()),
               );
 
-              if (newlyCreatedGoat != null) {
-                setState(() {
-                  goats.insert(0, newlyCreatedGoat); // Inserts at the top of the inventory array list
-                });
-                
+              if (success == true) {
+                _fetchGoats();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text("${newlyCreatedGoat['name']} added to inventory successfully!"),
+                    content: const Text("New goat profile added to database successfully!"),
                     backgroundColor: Colors.green.shade700,
                   ),
                 );
@@ -147,22 +152,49 @@ class _GoatsScreenState extends State<GoatsScreen> {
           ),
 
           Expanded(
-            child: filteredGoats.isEmpty
-                ? Center(
-                    child: Text(
-                      "No records matching search parameters.",
-                      style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-                    ),
-                  )
-                : ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: filteredGoats.length,
-                    itemBuilder: (context, index) {
-                      final goat = filteredGoats[index];
-                      return _buildGoatItemCard(goat);
-                    },
-                  ),
+            child: RefreshIndicator(
+              onRefresh: _fetchGoats,
+              color: primaryGreen,
+              child: _isLoading 
+                  ? Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(primaryGreen)))
+                  : _errorMessage != null
+                      ? SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: Container(
+                            height: 400,
+                            alignment: Alignment.center,
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.cloud_off_rounded, size: 48, color: Colors.red),
+                                const SizedBox(height: 16),
+                                Text(
+                                  "Failed to load inventory from server:\n$_errorMessage",
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : filteredGoats.isEmpty
+                          ? Center(
+                              child: Text(
+                                "No records matching search parameters.",
+                                style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                              ),
+                            )
+                          : ListView.builder(
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: filteredGoats.length,
+                              itemBuilder: (context, index) {
+                                final goat = filteredGoats[index];
+                                return _buildGoatItemCard(goat);
+                              },
+                            ),
+            ),
           ),
         ],
       ),
@@ -190,8 +222,8 @@ class _GoatsScreenState extends State<GoatsScreen> {
     );
   }
 
-  Widget _buildGoatItemCard(Map<String, String> goat) {
-    final bool isMale = (goat['gender'] ?? 'Male').toLowerCase() == 'male';
+  Widget _buildGoatItemCard(GoatModel goat) {
+    final bool isMale = goat.gender.toLowerCase() == 'male';
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -221,26 +253,47 @@ class _GoatsScreenState extends State<GoatsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("${goat['name']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
+                    Text(goat.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: isMale ? Colors.blue.shade50 : Colors.orange.shade50,
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text("${goat['gender']}", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isMale ? Colors.blue.shade700 : Colors.orange.shade700)),
+                      child: Text(goat.gender, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isMale ? Colors.blue.shade700 : Colors.orange.shade700)),
                     )
                   ],
                 ),
                 const SizedBox(height: 6),
-                _buildInfoRow(Icons.tag_rounded, "Ear Tag: ${goat['tag']}"),
-                _buildInfoRow(Icons.layers_outlined, "Breed Group: ${goat['breed']}"),
+                _buildInfoRow(Icons.tag_rounded, "Ear Tag: ${goat.tagNumber}"),
+                _buildInfoRow(Icons.layers_outlined, "Breed Group: ${goat.breed}"),
                 Row(
                   children: [
-                    Expanded(child: _buildInfoRow(Icons.calendar_today_rounded, "Age: ${goat['age']}")),
-                    Expanded(child: _buildInfoRow(Icons.scale_rounded, "Weight: ${goat['weight']}")),
+                    Expanded(child: _buildInfoRow(Icons.calendar_today_rounded, "Age: ${goat.age}")),
+                    Expanded(child: _buildInfoRow(Icons.scale_rounded, "Weight: ${goat.weight} kg")),
                   ],
                 ),
+                if (goat.isPregnant) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.pink.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.child_care_rounded, size: 14, color: Colors.pink.shade700),
+                        const SizedBox(width: 6),
+                        Text(
+                          "Pregnant: ${goat.gestationDaysRemaining ?? '150'} days left",
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.pink.shade700),
+                        ),
+                      ],
+                    ),
+                  )
+                ]
               ],
             ),
           ),
@@ -261,4 +314,4 @@ class _GoatsScreenState extends State<GoatsScreen> {
       ),
     );
   }
-}
+}

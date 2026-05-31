@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../Services/api_service.dart';
+import '../Models/goat_model.dart';
 
 class AddGoatScreen extends StatefulWidget {
   const AddGoatScreen({Key? key}) : super(key: key);
@@ -9,7 +11,6 @@ class AddGoatScreen extends StatefulWidget {
 
 class _AddGoatScreenState extends State<AddGoatScreen> {
   final _formKey = GlobalKey<FormState>();
-  
   final _nameController = TextEditingController();
   final _tagController = TextEditingController();
   final _ageController = TextEditingController();
@@ -30,26 +31,52 @@ class _AddGoatScreenState extends State<AddGoatScreen> {
     super.dispose();
   }
 
-  void _submitForm() {
+  void _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Generate random internal system database placeholder IDs for simplicity
-    final String systematicId = "GT0${UniqueKey().hashCode.toString().substring(0, 2)}";
+    // Show loading spinner
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+        ),
+      ),
+    );
 
-    // Combines inputs into the required schema object structure
-    final Map<String, String> newGoatData = {
-      "id": systematicId,
-      "name": _nameController.text.trim(),
-      "breed": _selectedBreed,
-      "gender": _selectedGender,
-      "age": _ageController.text.trim(),
-      "weight": "${_weightController.text.trim()} kg",
-      "dateAdded": "Today",
-      "tag": _tagController.text.trim().toUpperCase(),
-    };
+    final double parsedWeight = double.tryParse(_weightController.text.trim()) ?? 0.0;
+         final GoatModel newGoat = GoatModel(
+  id: 0, // Backend will auto-generate the ID
+  name: _nameController.text.trim(),
+  tagNumber: _tagController.text.trim().toUpperCase(),
+  breed: _selectedBreed,
+  gender: _selectedGender,
+  age: _ageController.text.trim(),
+  weight: parsedWeight,
+  isPregnant: false, // Newly registered goats default to not pregnant
+  breedingDate: null,
+  gestationDaysRemaining: null,
+  dateAdded: DateTime.now(),
+  healthStatus: "Healthy", // Default status
+);
+    
 
-    // Pops back context, returning data cleanly to GoatsScreen
-    Navigator.pop(context, newGoatData);
+    final bool success = await ApiService.addGoat(newGoat);
+
+    if (!mounted) return;
+    Navigator.pop(context); // Dismiss loading spinner
+
+    if (success) {
+      Navigator.pop(context, true); // Pop screen, return success indicator
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Failed to register new goat. Please check tag ID uniqueness or backend connectivity."),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
