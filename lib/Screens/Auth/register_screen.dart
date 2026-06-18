@@ -59,7 +59,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Account created successfully! Welcome to Kwagala Farm."),
-          backgroundColor: Colors.green,
+          backgroundColor: const Color(0xFF2E7D32),
         ),
       );
 

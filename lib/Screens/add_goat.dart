@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../Services/api_service.dart';
 import '../Models/goat_model.dart';
+import '../theme_helper.dart';
+import '../Widgets/hover_card.dart';
+
 
 class AddGoatScreen extends StatefulWidget {
   const AddGoatScreen({Key? key}) : super(key: key);
@@ -84,16 +87,16 @@ class _AddGoatScreenState extends State<AddGoatScreen> {
     final Color primaryGreen = Colors.green.shade700;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppTheme.bg(context),
       appBar: AppBar(
         title: const Text("Register New Goat", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0F172A),
+        backgroundColor: AppTheme.card(context),
+        foregroundColor: AppTheme.textDark(context),
         elevation: 0,
         centerTitle: true,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(color: const Color(0xFFE2E8F0), height: 1),
+          child: Container(color: AppTheme.border(context), height: 1),
         ),
       ),
       body: SafeArea(

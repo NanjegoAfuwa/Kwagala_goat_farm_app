@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../theme_helper.dart';
 import 'package:image_picker/image_picker.dart';
 
 class EditFarmScreen extends StatefulWidget {
@@ -78,7 +79,7 @@ class _EditFarmScreenState extends State<EditFarmScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Farm profile details updated successfully!"),
-          backgroundColor: Colors.green,
+          backgroundColor: const Color(0xFF2E7D32),
           duration: Duration(seconds: 2),
         ),
       );
@@ -93,10 +94,10 @@ class _EditFarmScreenState extends State<EditFarmScreen> {
     final Color primaryGreen = Colors.green.shade700;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppTheme.bg(context),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0F172A),
+        backgroundColor: AppTheme.card(context),
+        foregroundColor: AppTheme.textDark(context),
         elevation: 0,
         title: const Text(
           "Edit Farm Profile",

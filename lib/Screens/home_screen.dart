@@ -1,329 +1,326 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:kwagala_farm/Services/api_service.dart';
+import '../Services/api_service.dart';
 import '../Models/goat_model.dart';
-
+import '../Models/dashboard_models.dart';
+import '../theme_helper.dart';
+import '../Widgets/shimmer.dart';
+import 'goat_records.dart';
+import 'health_vaccination_screen.dart';
+import 'market_sales_screen.dart';
+import 'financial_reports_screen.dart';
+import 'weather_screen.dart';
+import '../Widgets/hover_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Controller to handle the running notification ticker animation smoothly
   final ScrollController _tickerScrollController = ScrollController();
   Timer? _tickerTimer;
 
-  // 👈 State indicators added to manage live network connection environments cleanly
   bool _isLoadingDashboard = true;
   String? _networkError;
-  bool _isFirstAlertFetch = true; // Track if we've never fetched alerts before
+  bool _isFirstAlertFetch = true;
 
-  List<GoatModel> _allGoats = [];
+  List<GoatModel> _allGoats      = [];
   List<GoatModel> _pregnantGoats = [];
-
-  // Structured live feed alerts with their respective converted operational task text
-  // Start empty—will be populated from API or defaults only on initial fetch
   List<Map<String, String>> _tickerAlerts = [];
-
-  // Updated Checklist Array containing your newly converted task from chat
-  List<Map<String, dynamic>> _dailyTasks = [
-    {"id": null, "task": "Clean Paddock B water troughs", "done": true},
-    {"id": null, "task": "Administer Dewormer to Boer group", "done": false},
-    {"id": null, "task": "Confirm evening feed mix ratios", "done": false},
-    {"id": null, "task": "Review flock health optimization variance logs", "done": false}, // Added from chat conversion
+  List<Map<String, dynamic>> _dailyTasks  = [
+    {'id': null, 'task': 'Clean Paddock B water troughs',                 'done': true},
+    {'id': null, 'task': 'Administer Dewormer to Boer group',             'done': false},
+    {'id': null, 'task': 'Confirm evening feed mix ratios',               'done': false},
+    {'id': null, 'task': 'Review flock health optimization variance logs', 'done': false},
   ];
+
+  static const Color _green  = Color(0xFF2E7D32);
+  static const Color _orange = Color(0xFFF57C00);
+
+  // Notification overlay entry
+  OverlayEntry? _notifOverlay;
+
+  late final List<_HubItem> _hubItems;
 
   @override
   void initState() {
     super.initState();
-    // 👈 Load live records straight from Django database on system launch
+    _hubItems = [
+      _HubItem('My Goats',         _GoatIcon(),                            () => _push(const GoatsScreen())),
+      _HubItem('Health & Vaccines', const Icon(Icons.health_and_safety_rounded, size: 72, color: _orange), () => _push(const HealthVaccinationScreen())),
+      _HubItem('Breeding Records',  const Icon(Icons.favorite_rounded,          size: 72, color: _green),  () {}),
+      _HubItem('Sales & Market',    const Icon(Icons.swap_horiz_rounded,        size: 72, color: _orange), () => _push(const MarketSalesScreen())),
+      _HubItem('Financial Reports', const Icon(Icons.bar_chart_rounded,         size: 72, color: _green),  () => _push(const FinancialReportsScreen())),
+      _HubItem('Weather',           const Icon(Icons.wb_sunny_rounded,          size: 72, color: _orange), () => _push(const WeatherScreen())),
+    ];
     _syncDashboardWithBackend();
-    // Setup automated micro-scrolling for our ticker bar after the frame renders
     WidgetsBinding.instance.addPostFrameCallback((_) => _startTickerAnimation());
   }
 
-  // 👈 NEW METHOD: Synchronizes alerts and checklist datasets concurrently via Django ViewSets
+  void _push(Widget w) =>
+      Navigator.push(context, MaterialPageRoute(builder: (_) => w));
+
   Future<void> _syncDashboardWithBackend() async {
-    setState(() {
-      _isLoadingDashboard = true;
-      _networkError = null;
-    });
-
+    setState(() { _isLoadingDashboard = true; _networkError = null; });
     try {
-      // Pull tasks, alerts, and goats concurrently from ApiService
-      final liveAlertsList = await ApiService.fetchLiveAlerts();
-      final liveTasksList = await ApiService.fetchTasks();
-      final liveGoatsList = await ApiService.fetchGoats();
-      // Debug: print fetched alerts to aid troubleshooting
-      try {
-        // ignore: avoid_print
-        print('HomeScreen: fetched ${liveAlertsList.length} alerts');
-        for (var a in liveAlertsList) {
-          // ignore: avoid_print
-          print('  alert -> id:${a.id} severity:${a.severity} message:${a.message} created:${a.createdAt}');
-        }
-      } catch (_) {}
-
-      // Remember previous alerts count so we can detect changes
-      final previousAlertCount = _tickerAlerts.length;
+      final alerts = await ApiService.fetchLiveAlerts();
+      final tasks  = await ApiService.fetchTasks();
+      final goats  = await ApiService.fetchGoats();
+      final prev   = _tickerAlerts.length;
 
       setState(() {
-        _allGoats = liveGoatsList;
-        _pregnantGoats = liveGoatsList.where((g) => g.isPregnant).toList();
+        _allGoats      = goats;
+        _pregnantGoats = goats.where((g) => g.isPregnant).toList()
+          ..sort((a, b) => (a.gestationDaysRemaining ?? 999)
+              .compareTo(b.gestationDaysRemaining ?? 999));
 
-        // Map Django Live Alerts into your local string payload formats if endpoints possess data
-        if (liveAlertsList.isNotEmpty) {
-          _tickerAlerts = liveAlertsList.map((alert) {
-            String prefix = alert.severity.toLowerCase() == 'critical' ? "⚠️ CRITICAL: " : "ℹ️ Info: ";
-            return {
-              "display": "$prefix${alert.message}",
-              "task": alert.message,
-            };
-          }).toList();
-          _isFirstAlertFetch = false;
+        if (alerts.isNotEmpty) {
+          final mapped = <Map<String, String>>[];
+          for (final a in alerts) {
+            final p = a.severity.toLowerCase() == 'critical' ? '⚠️ CRITICAL: '
+                    : a.severity.toLowerCase() == 'warning'  ? '🔔 Warning: '
+                    : 'ℹ️ ';
+            mapped.add({'display': '$p${a.message}', 'task': a.message});
+          }
+          _tickerAlerts = mapped; _isFirstAlertFetch = false;
         } else if (_isFirstAlertFetch) {
-          // Only populate defaults on first fetch if API returns empty
           _tickerAlerts = [
-            {
-              "display": "⚠️ Alert: Severe rainfall tracking towards Kampala region this evening, secure shelters.",
-              "task": "Secure shelters for evening severe rainfall alert"
-            },
-            {
-              "display": "💉 Veterinary Schedule: 4 Kalahari breeders due for booster inoculations tomorrow.",
-              "task": "Administer booster inoculations to Kalahari breeders"
-            },
-            {
-              "display": "📈 Farm Analytics: Overall flock health optimization rating is holding steady at 96% variance capacity.",
-              "task": "Review flock health optimization variance logs"
-            },
+            {'display': '⚠️ Alert: Severe rainfall towards Kampala this evening — secure shelters.', 'task': 'Secure shelters for severe rainfall alert'},
+            {'display': '💉 Vet: 4 Kalahari breeders due for booster inoculations tomorrow.', 'task': 'Administer booster inoculations to Kalahari breeders'},
+            {'display': '📈 Herd health rating holding steady at 96% variance capacity.', 'task': 'Review flock health optimization variance logs'},
           ];
           _isFirstAlertFetch = false;
         }
-        // On subsequent fetches where API returns empty, keep the previous alerts (don't reset)
 
-        // Map Django tasks backend database cleanly directly over your fallback items
-        if (liveTasksList.isNotEmpty) {
-          _dailyTasks = liveTasksList.map((task) {
-            return {
-              "id": task.id, // Retain ID parameters for secure database toggle patches
-              "task": task.title,
-              "done": task.isDone,
-            };
-          }).toList();
+        if (tasks.isNotEmpty) {
+          final mapped = <Map<String, dynamic>>[];
+          for (final t in tasks) mapped.add({'id': t.id, 'task': t.title, 'done': t.isDone});
+          _dailyTasks = mapped;
         }
-        
         _isLoadingDashboard = false;
       });
 
-      // If alerts changed, reset the ticker position and restart animation
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        try {
-          if (mounted && _tickerScrollController.hasClients) {
-            if (_tickerAlerts.length != previousAlertCount) {
-              _tickerTimer?.cancel();
-              _tickerScrollController.jumpTo(0.0);
-              _startTickerAnimation();
-            }
-          }
-        } catch (_) {}
+        if (mounted && _tickerScrollController.hasClients &&
+            _tickerAlerts.length != prev) {
+          _tickerTimer?.cancel();
+          _tickerScrollController.jumpTo(0);
+          _startTickerAnimation();
+        }
       });
     } catch (e) {
-      setState(() {
-        _networkError = e.toString();
-        _isLoadingDashboard = false;
-      });
+      setState(() { _networkError = e.toString(); _isLoadingDashboard = false; });
     }
   }
 
-  // 👈 NEW METHOD: Controls interacting updates with the server registry whenever items are tapped
-  void _toggleTaskDatabaseState(int index, Map<String, dynamic> task) async {
-    // If the task wasn't generated by Django (id is null), handle toggle strictly on frontend
-    if (task["id"] == null) {
-      setState(() {
-        _dailyTasks[index]["done"] = !task["done"];
-      });
-      return;
+  void _toggleTask(int i, Map<String, dynamic> task) async {
+    if (task['id'] == null) {
+      setState(() => _dailyTasks[i]['done'] = !task['done']); return;
     }
-
-    // Toggle local state immediately for snappy user tracking performance response
-    setState(() {
-      _dailyTasks[index]["done"] = !task["done"];
-    });
-
-    bool updateSuccess = await ApiService.toggleTaskStatus(task["id"], !task["done"]);
-    
-    // Roll back local changes if backend communication encounters roadblock errors
-    if (!updateSuccess) {
-      setState(() {
-        _dailyTasks[index]["done"] = task["done"];
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("❌ Failed to synchronize checkbox update with live database."),
-          backgroundColor: Colors.red,
-        ),
-      );
+    final was = task['done'] as bool;
+    setState(() => _dailyTasks[i]['done'] = !was);
+    final ok = await ApiService.toggleTaskStatus(task['id'] as int, was);
+    if (!ok && mounted) {
+      setState(() => _dailyTasks[i]['done'] = was);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('❌ Failed to sync task.'), backgroundColor: Colors.red));
     }
   }
 
   void _startTickerAnimation() {
-    _tickerTimer = Timer.periodic(const Duration(milliseconds: 40), (timer) {
+    _tickerTimer = Timer.periodic(const Duration(milliseconds: 40), (_) {
       if (_tickerScrollController.hasClients) {
-        final scrollPosition = _tickerScrollController.position;
-        final maxExtent = scrollPosition.maxScrollExtent;
-        final currentPosition = scrollPosition.pixels;
-
-        if (maxExtent <= 0) return;
-
-        final nextPosition = currentPosition + 1.5;
-        if (nextPosition >= maxExtent) {
-          _tickerScrollController.jumpTo(0.0);
-        } else {
-          _tickerScrollController.jumpTo(nextPosition);
-        }
+        final pos = _tickerScrollController.position;
+        if (pos.maxScrollExtent <= 0) return;
+        final next = pos.pixels + 1.5;
+        _tickerScrollController.jumpTo(next >= pos.maxScrollExtent ? 0 : next);
       }
     });
   }
 
-  // Business logic method to transform an in-app ticker message into an interactive checklist item
-  void _convertAlertToTask(String taskTitle, String contextualAlert) {
-    bool itemExists = _dailyTasks.any((element) => element["task"] == taskTitle);
-
-    if (itemExists) {
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("ℹ️ '$taskTitle' is already listed in your operational checklist."),
+  void _convertAlertToTask(String title, String display) {
+    if (_dailyTasks.any((t) => t['task'] == title)) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("ℹ️ '$title' already in checklist."),
           backgroundColor: Colors.amber.shade800,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+          behavior: SnackBarBehavior.floating));
       return;
     }
-
-    setState(() {
-      _dailyTasks.add({
-        "id": null, // Local custom item allocation identifier marker
-        "task": taskTitle,
-        "done": false,
-      });
-    });
-
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.playlist_add_check_rounded, color: Colors.white),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                "Converted Alert into Task successfully!",
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
+    setState(() => _dailyTasks.add({'id': null, 'task': title, 'done': false}));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Row(children: [
+          Icon(Icons.playlist_add_check_rounded, color: Colors.white),
+          SizedBox(width: 10),
+          Text('Alert converted to task!',
+              style: TextStyle(fontWeight: FontWeight.w600)),
+        ]),
         backgroundColor: Colors.green.shade800,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+        behavior: SnackBarBehavior.floating));
   }
 
-  // New helper method to display active notifications from the bell action icon
-  void _showNotificationsPanel(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  // ── DROPDOWN NOTIFICATION PANEL (top-right corner, not bottom sheet) ───────
+  void _showNotifDropdown(BuildContext context) {
+    _dismissNotif(); // close if already open
+
+    final RenderBox button =
+        context.findRenderObject() as RenderBox;
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(
+            button.size.bottomRight(Offset.zero), ancestor: overlay),
       ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          height: 380,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "ACTIVE LIVE ALERTS",
-                    style: TextStyle(
-                      fontSize: 12, 
-                      fontWeight: FontWeight.bold, 
-                      letterSpacing: 1,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded, size: 20),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: _tickerAlerts.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                  itemBuilder: (context, index) {
-                    final alert = _tickerAlerts[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            alert["display"]!,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF0F172A),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                _convertAlertToTask(alert["task"]!, alert["display"]!);
-                              },
-                              icon: const Icon(Icons.bolt, size: 14, color: Colors.white),
-                              label: const Text("Convert to Task", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange.shade700,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                              ),
-                            ),
-                          )
-                        ],
+      Offset.zero & overlay.size,
+    );
+
+    _notifOverlay = OverlayEntry(
+      builder: (ctx) => Stack(
+        children: [
+          // Tap outside to dismiss
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: _dismissNotif,
+              behavior: HitTestBehavior.opaque,
+              child: const SizedBox.expand(),
+            ),
+          ),
+          // The dropdown panel — anchored top-right
+          Positioned(
+            top: position.top + button.size.height + 4,
+            right: 8,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                width: 300,
+                constraints: const BoxConstraints(maxHeight: 340),
+                decoration: BoxDecoration(
+                  color: AppTheme.card(context),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.18),
+                        blurRadius: 20,
+                        offset: const Offset(0, 6)),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: const BoxDecoration(
+                        color: _green,
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(14)),
                       ),
-                    );
-                  },
+                      child: Row(children: [
+                        const Icon(Icons.notifications_rounded,
+                            color: Colors.white, size: 18),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text('Live Alerts',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14)),
+                        ),
+                        GestureDetector(
+                          onTap: _dismissNotif,
+                          child: const Icon(Icons.close_rounded,
+                              color: Colors.white70, size: 18),
+                        ),
+                      ]),
+                    ),
+                    // Alert list
+                    Flexible(
+                      child: _tickerAlerts.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Text('No active alerts.',
+                                  style: TextStyle(color: AppTheme.textMid(ctx))))
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              padding: EdgeInsets.zero,
+                              itemCount: _tickerAlerts.length,
+                              separatorBuilder: (_, __) => Divider(
+                                  height: 1,
+                                  color: AppTheme.isDark(ctx)
+                                      ? Colors.white.withOpacity(0.08)
+                                      : const Color(0xFFF1F5F9)),
+                              itemBuilder: (_, i) {
+                                final a = _tickerAlerts[i];
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 10),
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                    Text(a['display']!,
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: AppTheme.textDark(ctx),
+                                            fontWeight: FontWeight.w500,
+                                            height: 1.4)),
+                                    const SizedBox(height: 6),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          _dismissNotif();
+                                          _convertAlertToTask(
+                                              a['task']!, a['display']!);
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 9, vertical: 4),
+                                          decoration: BoxDecoration(
+                                              color: _orange.withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              border: Border.all(
+                                                  color: _orange
+                                                      .withOpacity(0.3))),
+                                          child: const Text('⚡ Add to Tasks',
+                                              style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: _orange,
+                                                  fontWeight:
+                                                      FontWeight.bold)),
+                                        ),
+                                      ),
+                                    ),
+                                  ]),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
+
+    Overlay.of(context).insert(_notifOverlay!);
+  }
+
+  void _dismissNotif() {
+    _notifOverlay?.remove();
+    _notifOverlay = null;
   }
 
   @override
   void dispose() {
+    _dismissNotif();
     _tickerTimer?.cancel();
     _tickerScrollController.dispose();
     super.dispose();
@@ -331,496 +328,596 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryGreen = Colors.green.shade700;
-    final Color focusOrange = Colors.orange.shade700;
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppTheme.bg(context),
+
+      // ── APP BAR ─────────────────────────────────────────────────────────
       appBar: AppBar(
         automaticallyImplyLeading: false,
+        backgroundColor: const Color(0xFF2E7D32),
         elevation: 0,
-        backgroundColor: Colors.white,
-        titleSpacing: 24,
-        shape: const Border(
-          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(Icons.agriculture_rounded, color: primaryGreen, size: 22),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  "Kwagala Goat Farm",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-                Text(
-                  "Kampala, Central Region",
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-          ],
+        titleSpacing: 20,
+        title: Row(children: [
+          Image.asset('Assets/farm.png', height: 50, width: 50,
+              errorBuilder: (_, __, ___) =>
+                  const Icon(Icons.agriculture_rounded,
+                      color: Colors.white, size: 24)),
+          const SizedBox(width: 10),
+          const Text('Kwagala Goat Farm',
+              style: TextStyle(color: Colors.white, fontSize: 17,
+                  fontWeight: FontWeight.bold)),
+        ]),
+        // Thin orange underline separator
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(3),
+          child: Container(color: _orange, height: 3),
         ),
         actions: [
-          // 👈 Added pulling swipe refresh option to refresh layout components on demand
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)),
-            onPressed: _syncDashboardWithBackend,
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_active_rounded, color: Color(0xFF64748B)),
-            onPressed: () => _showNotificationsPanel(context),
-          ),
-          const SizedBox(width: 16),
+          // Orange notification bell — dropdown at corner
+          Builder(builder: (btnCtx) => IconButton(
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_rounded,
+                    color: _orange, size: 28),
+                if (_tickerAlerts.isNotEmpty)
+                  Positioned(
+                    right: -2, top: -2,
+                    child: Container(
+                      width: 10, height: 10,
+                      decoration: const BoxDecoration(
+                          color: Colors.red, shape: BoxShape.circle),
+                    ),
+                  ),
+              ],
+            ),
+            onPressed: () => _showNotifDropdown(btnCtx),
+          )),
+          const SizedBox(width: 4),
         ],
       ),
+
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _syncDashboardWithBackend,
-          color: primaryGreen,
+          color: _green,
           child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics()),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                
-                // 👈 Optional warning bar communicating network roadblock boundaries gracefully
-                if (_networkError != null)
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8)),
-                    child: Text(
-                      "Offline mode active. Showing saved tasks layout templates.",
-                      style: TextStyle(color: Colors.amber.shade900, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ),
 
-                // ================= ORIGINAL FULL PICTURE CARD BANNER =================
-                Container(
-                  width: double.infinity,
-                  height: 160,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                    image: const DecorationImage(
-                      image: AssetImage('assets/main1.jpg'),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+                // ── HERO IMAGE ──────────────────────────────
+                Padding(
+                  padding:
+                      const EdgeInsets.fromLTRB(16, 16, 16, 0),
                   child: Container(
+                    width: double.infinity,
+                    height: 155,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.85),
-                          Colors.black.withOpacity(0.20),
-                        ],
-                      ),
-                    ),
-                    padding: const EdgeInsets.all(20),
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Kwagala Herd Hub",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          "Leading premium breed optimization registers in Uganda.",
-                          style: TextStyle(
-                            color: Color(0xFFE2E8F0),
-                            fontSize: 13,
-                          ),
-                        ),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4))
                       ],
+                      image: const DecorationImage(
+                          image: AssetImage('Assets/main1.jpg'),
+                          fit: BoxFit.cover),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // ================= PROFESSIONAL LIVE TICKER BANNER (INTERACTIVE) =================
-                Container(
-                  height: 38,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A), 
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        height: double.infinity,
-                        decoration: BoxDecoration(
-                          color: focusOrange,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8),
-                            bottomLeft: Radius.circular(8),
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Row(
-                          children: [
-                            Icon(Icons.sensors, color: Colors.white, size: 14),
-                            SizedBox(width: 4),
-                            Text(
-                              "LIVE FEED",
-                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                            ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.80),
+                            Colors.black.withOpacity(0.15),
                           ],
                         ),
                       ),
-                      Expanded(
-                        child: ListView.builder(
-                          controller: _tickerScrollController,
-                          scrollDirection: Axis.horizontal,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _tickerAlerts.length * 2,
-                          itemBuilder: (context, index) {
-                            final alert = _tickerAlerts[index % _tickerAlerts.length];
-                            return InkWell(
-                              onTap: () => _convertAlertToTask(alert["task"]!, alert["display"]!),
-                              splashColor: Colors.orange.withOpacity(0.3),
-                              highlightColor: Colors.transparent,
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 16, right: 48.0),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      "${alert["display"]} ",
-                                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.orange.shade800.withOpacity(0.4),
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: Colors.orange.shade600, width: 0.5),
-                                      ),
-                                      child: const Text(
-                                        "⚡ Convert to Task",
-                                        style: TextStyle(color: Colors.orangeAccent, fontSize: 9, fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Nurturing Healthier Farms, One Animal at a Time',
+                              style: TextStyle(
+                                  color: Colors.white, fontSize: 21,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.4)),
+                          const SizedBox(height: 4),
+                          Text(
+                            _isLoadingDashboard
+                                ? 'Loading farm data...'
+                                : '${_allGoats.length} goats · '
+                                  '${_pregnantGoats.length} pregnant · '
+                                  '${_dailyTasks.where((t) => t["done"] == false).length} tasks pending',
+                            style: const TextStyle(
+                                color: Color(0xFFE2E8F0), fontSize: 13),
+                          ),
+                        ],
                       ),
+                    ),
+                  ),
+                ),
+
+                // ── LIVE TICKER (original style, dark bg) ─────────────
+                if (_tickerAlerts.isNotEmpty)
+                  Padding(
+                    padding:
+                        const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: Container(
+                      height: 38,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                          color: const Color(0xFF0F172A),
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Row(children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          height: double.infinity,
+                          decoration: const BoxDecoration(
+                            color: _orange,
+                            borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(8),
+                                bottomLeft: Radius.circular(8)),
+                          ),
+                          alignment: Alignment.center,
+                          child: const Row(children: [
+                            Icon(Icons.sensors, color: Colors.white, size: 14),
+                            SizedBox(width: 4),
+                            Text('LIVE FEED',
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5)),
+                          ]),
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                            controller: _tickerScrollController,
+                            scrollDirection: Axis.horizontal,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _tickerAlerts.length * 2,
+                            itemBuilder: (_, i) {
+                              final a = _tickerAlerts[i % _tickerAlerts.length];
+                              return InkWell(
+                                onTap: () =>
+                                    _convertAlertToTask(a['task']!, a['display']!),
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.only(left: 16, right: 48),
+                                  child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                    Text(a['display']!,
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500)),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.shade800
+                                            .withOpacity(0.4),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(
+                                            color: Colors.orange.shade600,
+                                            width: 0.5),
+                                      ),
+                                      child: const Text('⚡ Convert to Task',
+                                          style: TextStyle(
+                                              color: Colors.orangeAccent,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold)),
+                                    ),
+                                  ]),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ),
+
+                // ── GRID CARDS (3 rows × 2 cols like screenshot) ──────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 14,
+                      crossAxisSpacing: 14,
+                      childAspectRatio: 1.0,
+                    ),
+                    itemCount: _hubItems.length,
+                    itemBuilder: (_, i) => _buildHubCard(_hubItems[i]),
+                  ),
+                ),
+
+                // ── GESTATION TRACKER ────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionHeader('ACTIVE GESTATION TRACKING'),
+                      const SizedBox(height: 12),
+                      if (_isLoadingDashboard)
+                        Center(child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Shimmer(width: 220, height: 14, borderRadius: BorderRadius.circular(6))))
+                      else if (_pregnantGoats.isNotEmpty)
+                        ..._pregnantGoats.take(3).map((g) {
+                          final days = g.gestationDaysRemaining ?? 75;
+                          final prog =
+                              ((150 - days) / 150).clamp(0.0, 1.0);
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _gestationCard(
+                              label: g.name.isNotEmpty
+                                  ? '${g.tagNumber} (${g.name})'
+                                  : g.tagNumber,
+                              breed: g.breed,
+                              daysRemaining: days,
+                              progress: prog,
+                            ),
+                          );
+                        })
+                      else ...[
+                        _gestationCard(
+                            label: 'GT-042 (Daisy)',
+                            breed: 'Pure Boer',
+                            daysRemaining: 34,
+                            progress: 0.77),
+                        const SizedBox(height: 12),
+                        _gestationCard(
+                            label: 'GT-089 (Flora)',
+                            breed: 'Kalahari Red',
+                            daysRemaining: 112,
+                            progress: 0.25),
+                      ],
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
 
-                // ================= MODULE 2: CONTEXTUAL QUICK ACTION HUB =================
-                _buildSectionHeader("OPERATIONAL TACTICAL HUB"),
-                const SizedBox(height: 12),
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 1.4,
-                  children: [
-                    _buildQuickActionCard(
-                      icon: Icons.qr_code_scanner_rounded,
-                      title: "Scan Ear Tag",
-                      subtitle: "Instant profile search",
-                      onTap: () => _showMockScanner(context),
-                    ),
-                    _buildQuickActionCard(
-                      icon: Icons.medication_liquid_outlined,
-                      title: "Log Treatment",
-                      subtitle: "Rapid health report",
-                      onTap: () {},
-                    ),
-                    _buildQuickActionCard(
-                      icon: Icons.scale_outlined,
-                      title: "Record Weight",
-                      subtitle: "Update growth logs",
-                      onTap: () {},
-                    ),
-                    _buildQuickActionCard(
-                      icon: Icons.pie_chart_outline_rounded,
-                      title: "Cash Allocation",
-                      subtitle: "Review cost metrics",
-                      onTap: () {},
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-
-                // ================= MODULE 3: VISUAL LIFE-CYCLE BREEDING GESTATION TRACKER =================
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildSectionHeader("ACTIVE GESTATION TRACKING"),
-                    Text(
-                      "3 Pregnant",
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: primaryGreen),
-                    )
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildGestationTrackerCard(
-                  goatId: "GT-042 (Daisy)",
-                  breed: "Pure Boer",
-                  daysRemaining: 34,
-                  progressValue: 0.77,
-                ),
-                const SizedBox(height: 12),
-                _buildGestationTrackerCard(
-                  goatId: "GT-089 (Flora)",
-                  breed: "Kalahari Red",
-                  daysRemaining: 112,
-                  progressValue: 0.25,
-                ),
-                const SizedBox(height: 32),
-
-                // ================= MODULE 4: INTERACTIVE DAILY SHIFT CHECKLIST =================
-                _buildSectionHeader("DAILY OPERATIONS CHECKLIST"),
-                const SizedBox(height: 12),
-                
-                // 👈 Embedded subtle layout loader mechanism for task items list updates
-                _isLoadingDashboard 
-                ? Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20.0),
-                    child: Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(primaryGreen))),
-                  )
-                : Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _dailyTasks.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                      itemBuilder: (context, index) {
-                        final task = _dailyTasks[index];
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                          leading: InkWell(
-                            borderRadius: BorderRadius.circular(20),
-                            onTap: () => _toggleTaskDatabaseState(index, task), // 👈 Hooked up to live Django Toggle handler
-                            child: Padding(
-                              padding: const EdgeInsets.all(4.0),
-                              child: Icon(
-                                task["done"] ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                                color: task["done"] ? primaryGreen : const Color(0xFF94A3B8),
-                                size: 22,
+                // ── DAILY CHECKLIST ──────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionHeader('DAILY OPERATIONS CHECKLIST'),
+                      const SizedBox(height: 12),
+                        _isLoadingDashboard
+                          ? Center(child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Shimmer(width: 220, height: 14, borderRadius: BorderRadius.circular(6))))
+                          : Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: const Color(0xFFE2E8F0)),
                               ),
+                              child: _dailyTasks.isEmpty
+                                  ? const Padding(
+                                      padding: EdgeInsets.all(24),
+                                      child: Center(
+                                          child: Text(
+                                              'No tasks. Add from admin panel.',
+                                              style: TextStyle(
+                                                  color: Color(0xFF94A3B8)))))
+                                  : ListView.separated(
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      itemCount: _dailyTasks.length,
+                                      separatorBuilder: (_, __) =>
+                                          const Divider(
+                                              height: 1,
+                                              color: Color(0xFFE2E8F0)),
+                                      itemBuilder: (_, i) {
+                                        final task = _dailyTasks[i];
+                                        final done =
+                                            task['done'] as bool;
+                                        return ListTile(
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 16,
+                                                  vertical: 4),
+                                          leading: InkWell(
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            onTap: () =>
+                                                _toggleTask(i, task),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.all(4),
+                                              child: Icon(
+                                                done
+                                                    ? Icons
+                                                        .check_circle_rounded
+                                                    : Icons
+                                                        .radio_button_unchecked_rounded,
+                                                color: done
+                                                    ? _green
+                                                    : const Color(
+                                                        0xFF94A3B8),
+                                                size: 22,
+                                              ),
+                                            ),
+                                          ),
+                                          title: Text(
+                                            task['task'] as String,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                              color: done
+                                                  ? const Color(0xFF94A3B8)
+                                                  : const Color(0xFF0F172A),
+                                              decoration: done
+                                                  ? TextDecoration
+                                                      .lineThrough
+                                                  : TextDecoration.none,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
                             ),
-                          ),
-                          title: Text(
-                            task["task"],
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: task["done"] ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
-                              decoration: task["done"] ? TextDecoration.lineThrough : TextDecoration.none,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                    ],
                   ),
-                const SizedBox(height: 24),
+                ),
+
+                const SizedBox(height: 40),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
 
-  Widget _buildSectionHeader(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFF64748B),
-        letterSpacing: 0.8,
+      // ── SYNC DATA FAB ────────────────────────────────────────────────
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: _orange,
+        onPressed: _syncDashboardWithBackend,
+        icon: const Icon(Icons.sync_rounded, color: Colors.white),
+        label: const Text('Sync data',
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
+        elevation: 3,
       ),
     );
   }
 
-  Widget _buildQuickActionCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.orange.shade700, size: 24),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+  // ── LARGE HUB CARD ──────────────────────────────────────────────────────────
+  Widget _buildHubCard(_HubItem item) {
+    return StatefulBuilder(
+      builder: (context, setHover) {
+        bool _hovered = false;
+        return MouseRegion(
+          onEnter: (_) => setHover(() => _hovered = true),
+          onExit:  (_) => setHover(() => _hovered = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            transform: Matrix4.identity()
+              ..scale(_hovered ? 1.04 : 1.0),
+            transformAlignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(_hovered ? 0.14 : 0.07),
+                    blurRadius: _hovered ? 18 : 10,
+                    offset: Offset(0, _hovered ? 6 : 3)),
+              ],
             ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            child: InkWell(
+              onTap: item.onTap,
+              borderRadius: BorderRadius.circular(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  item.iconWidget,
+                  const SizedBox(height: 14),
+                  Text(item.label,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1A1A1A))),
+                ],
+              ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGestationTrackerCard({
-    required String goatId,
-    required String breed,
-    required int daysRemaining,
-    required double progressValue,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                goatId,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-              ),
-              Text(
-                "$daysRemaining days left",
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.orange.shade700),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "Breed group: $breed",
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: progressValue,
-              minHeight: 8,
-              backgroundColor: const Color(0xFFF1F5F9),
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.green.shade700),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showMockScanner(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          height: 320,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                "RFID / EAR TAG SCANNER",
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                width: 140,
-                height: 100,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.orange.shade700, width: 2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Icon(Icons.camera_alt_outlined, color: Colors.grey, size: 32),
-                    Divider(color: Colors.red, thickness: 2, indent: 8, endIndent: 8),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                "Hold ear tag within scanning parameters...",
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Simulated Tag detected: ID A101 (Lucky)")),
-                  );
-                },
-                child: Text("Simulate Tag Detect (A101)", style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold)),
-              )
-            ],
           ),
         );
       },
     );
   }
+
+  Widget _sectionHeader(String text) => Text(text,
+      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold,
+          color: Color(0xFF64748B), letterSpacing: 0.8));
+
+  Widget _gestationCard({
+    required String label,
+    required String breed,
+    required int daysRemaining,
+    required double progress,
+  }) =>
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            color: Colors.white, borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0))),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text(label, style: const TextStyle(fontSize: 14,
+                fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+            Text('$daysRemaining days left',
+                style: const TextStyle(fontSize: 12,
+                    fontWeight: FontWeight.w600, color: _orange)),
+          ]),
+          const SizedBox(height: 4),
+          Text('Breed group: $breed',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progress, minHeight: 8,
+              backgroundColor: const Color(0xFFF1F5F9),
+              valueColor: const AlwaysStoppedAnimation(_green),
+            ),
+          ),
+        ]),
+      );
+}
+
+// ── DATA CLASS FOR HUB ITEMS ─────────────────────────────────────────────────
+class _HubItem {
+  final String label;
+  final Widget iconWidget;
+  final VoidCallback onTap;
+  const _HubItem(this.label, this.iconWidget, this.onTap);
+}
+
+// ── GOAT SILHOUETTE ICON (matches screenshot exactly) ────────────────────────
+// Drawn with CustomPainter to match the walking goat silhouette in the screenshot
+class _GoatIcon extends StatelessWidget {
+  const _GoatIcon();
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+        size: const Size(80, 72),
+        painter: _GoatPainter(),
+      );
+}
+
+class _GoatPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFF57C00)
+      ..style = PaintingStyle.fill;
+
+    final s = size.width / 100; // scale factor
+
+    final path = Path();
+
+    // ── Body ─────────────────────────────────────────────────────────────────
+    path.moveTo(25 * s, 42 * s);
+    path.cubicTo(25 * s, 32 * s, 30 * s, 26 * s, 42 * s, 25 * s);
+    path.cubicTo(54 * s, 24 * s, 70 * s, 26 * s, 76 * s, 30 * s);
+    path.cubicTo(82 * s, 34 * s, 82 * s, 42 * s, 78 * s, 48 * s);
+    path.cubicTo(74 * s, 54 * s, 66 * s, 56 * s, 55 * s, 56 * s);
+    path.cubicTo(44 * s, 56 * s, 36 * s, 55 * s, 30 * s, 51 * s);
+    path.cubicTo(25 * s, 47 * s, 25 * s, 42 * s, 25 * s, 42 * s);
+    path.close();
+
+    // ── Neck + Head ──────────────────────────────────────────────────────────
+    final head = Path();
+    head.moveTo(42 * s, 25 * s);
+    head.cubicTo(40 * s, 18 * s, 38 * s, 14 * s, 36 * s, 11 * s);
+    head.cubicTo(34 * s, 8 * s, 32 * s, 6 * s, 30 * s, 6 * s);
+    head.cubicTo(24 * s, 6 * s, 19 * s, 10 * s, 18 * s, 16 * s);
+    head.cubicTo(17 * s, 22 * s, 20 * s, 27 * s, 26 * s, 28 * s);
+    head.cubicTo(32 * s, 29 * s, 38 * s, 27 * s, 42 * s, 25 * s);
+    head.close();
+
+    // ── Ear ─────────────────────────────────────────────────────────────────
+    final ear = Path();
+    ear.moveTo(18 * s, 14 * s);
+    ear.cubicTo(14 * s, 10 * s, 10 * s, 11 * s, 9 * s, 15 * s);
+    ear.cubicTo(8 * s, 19 * s, 11 * s, 22 * s, 15 * s, 21 * s);
+    ear.cubicTo(18 * s, 20 * s, 19 * s, 17 * s, 18 * s, 14 * s);
+    ear.close();
+
+    // ── Horn ────────────────────────────────────────────────────────────────
+    final horn = Path();
+    horn.moveTo(28 * s, 6 * s);
+    horn.cubicTo(27 * s, 2 * s, 25 * s, -1 * s, 24 * s, -1 * s);
+    horn.cubicTo(23 * s, -1 * s, 22 * s, 1 * s, 22 * s, 4 * s);
+    horn.cubicTo(22 * s, 7 * s, 23 * s, 9 * s, 25 * s, 9 * s);
+    horn.cubicTo(27 * s, 9 * s, 28 * s, 8 * s, 28 * s, 6 * s);
+    horn.close();
+
+    // ── Front legs ──────────────────────────────────────────────────────────
+    final fl1 = Path();
+    fl1.moveTo(38 * s, 55 * s);
+    fl1.lineTo(34 * s, 55 * s);
+    fl1.lineTo(33 * s, 75 * s);
+    fl1.lineTo(37 * s, 75 * s);
+    fl1.close();
+
+    final fl2 = Path();
+    fl2.moveTo(46 * s, 56 * s);
+    fl2.lineTo(42 * s, 56 * s);
+    fl2.lineTo(41 * s, 76 * s);
+    fl2.lineTo(45 * s, 76 * s);
+    fl2.close();
+
+    // ── Back legs ───────────────────────────────────────────────────────────
+    final bl1 = Path();
+    bl1.moveTo(62 * s, 55 * s);
+    bl1.lineTo(58 * s, 55 * s);
+    bl1.lineTo(57 * s, 75 * s);
+    bl1.lineTo(61 * s, 75 * s);
+    bl1.close();
+
+    final bl2 = Path();
+    bl2.moveTo(72 * s, 54 * s);
+    bl2.lineTo(68 * s, 54 * s);
+    bl2.lineTo(67 * s, 74 * s);
+    bl2.lineTo(71 * s, 74 * s);
+    bl2.close();
+
+    // ── Tail ─────────────────────────────────────────────────────────────────
+    final tail = Path();
+    tail.moveTo(78 * s, 30 * s);
+    tail.cubicTo(83 * s, 26 * s, 88 * s, 24 * s, 89 * s, 28 * s);
+    tail.cubicTo(90 * s, 32 * s, 86 * s, 36 * s, 80 * s, 36 * s);
+    tail.close();
+
+    // ── Beard ────────────────────────────────────────────────────────────────
+    final beard = Path();
+    beard.moveTo(19 * s, 22 * s);
+    beard.cubicTo(17 * s, 24 * s, 16 * s, 28 * s, 18 * s, 30 * s);
+    beard.cubicTo(20 * s, 32 * s, 23 * s, 30 * s, 22 * s, 26 * s);
+    beard.close();
+
+    // Draw all parts
+    canvas.save();
+    // Clip to avoid horn going out of bounds at top
+    canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    canvas.drawPath(path,  paint);
+    canvas.drawPath(head,  paint);
+    canvas.drawPath(ear,   paint);
+    canvas.drawPath(horn,  paint);
+    canvas.drawPath(fl1,   paint);
+    canvas.drawPath(fl2,   paint);
+    canvas.drawPath(bl1,   paint);
+    canvas.drawPath(bl2,   paint);
+    canvas.drawPath(tail,  paint);
+    canvas.drawPath(beard, paint);
+    canvas.restore();
+
+    // Eye — small dark circle
+    final eyePaint = Paint()..color = Colors.white;
+    canvas.drawCircle(Offset(22 * s, 14 * s), 1.8 * s, eyePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

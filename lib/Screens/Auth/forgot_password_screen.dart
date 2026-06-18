@@ -47,7 +47,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message'] ?? "Check your inbox for your 4-digit code!"),
-          backgroundColor: Colors.green,
+          backgroundColor: const Color(0xFF2E7D32),
           duration: const Duration(seconds: 5),
         ),
       );

@@ -32,7 +32,7 @@ class _GoatsExplorerScreenState extends State<GoatsExplorerScreen> {
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: const Text("Goats Inventory", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: const Color(0xFF2E7D32),
         elevation: 0,
         actions: [
           IconButton(
@@ -40,6 +40,14 @@ class _GoatsExplorerScreenState extends State<GoatsExplorerScreen> {
             onPressed: _refreshGoatsData,
           )
         ],
+      ,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(3),
+          child: Container(
+            color: const Color(0xFFF57C00),
+            height: 3,
+          ),
+        ),
       ),
       body: FutureBuilder<List<GoatModel>>(
         future: _goatsFuture,

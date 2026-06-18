@@ -49,7 +49,7 @@ class _ResetPasswordVerifyScreenState extends State<ResetPasswordVerifyScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Password updated successfully! Please sign in with your new credentials."),
-          backgroundColor: Colors.green,
+          backgroundColor: const Color(0xFF2E7D32),
         ),
       );
 
